@@ -23,6 +23,9 @@ class HostEnergy {
 public:
   HostEnergy(simgrid::surf::Host *ptr);
   ~HostEnergy();
+private:
+  void final_update();
+public:
 
   double getCurrentWattsValue(double cpu_load);
   double getConsumedEnergy();

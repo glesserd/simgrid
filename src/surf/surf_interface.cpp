@@ -271,7 +271,8 @@ static XBT_INLINE void routing_asr_prop_free(void *p)
 
 static XBT_INLINE void surf_storage_free(void *r)
 {
-  delete static_cast<simgrid::surf::Storage*>(r);
+  simgrid::surf::Storage::destroy(
+    static_cast<simgrid::surf::Storage*>(r));
 }
 
 void sg_version_check(int lib_version_major,int lib_version_minor,int lib_version_patch) {
@@ -614,7 +615,26 @@ Resource::Resource(Model *model, const char *name, e_surf_resource_state_t state
   , m_running(true), m_stateCurrent(stateInit)
 {}
 
+/** Terminate the resource
+ *
+ *  This is called before the destructor. It can be used to execute
+ *  code which needs the full state of the object (such as calling
+ *  virtual methods).
+ *
+ *  We use this to trigger callbacks on the destruction of the object.
+ *  Triggering them in the destructor is not correct because the state
+ *  is not good: in particular, methods overriden by child classes are
+ *  ignored if the callbacks are triggered in the destructor of the base
+ *  class.
+ */
+void Resource::terminate()
+{
+  destroyed_ = true;
+}
+
 Resource::~Resource() {
+  if (!destroyed_)
+    xbt_die("Resource::terminate() was not called before calling the destructor");
   xbt_free((void*)p_name);
 }
 

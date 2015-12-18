@@ -214,8 +214,11 @@ public:
               tmgr_history_t history,
               tmgr_trace_t state_trace);
 
+protected:
   /** @brief Link destructor */
   ~Link();
+  void terminate() override;
+public:
 
   /** @brief Get the bandwidth in bytes per second of current Link */
   virtual double getBandwidth();

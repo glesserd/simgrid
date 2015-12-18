@@ -127,8 +127,11 @@ public:
       lmm_constraint_t constraint, xbt_dynar_t storage, RoutingEdge *netElm,
       Cpu *cpu);
 
+protected:
   /** @brief Host destructor */
   ~Host();
+  void terminate() override;
+public:
 
   void attach(simgrid::Host* host);
   void setState(e_surf_resource_state_t state);

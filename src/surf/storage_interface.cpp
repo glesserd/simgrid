@@ -88,8 +88,14 @@ Storage::Storage(Model *model, const char *name, xbt_dict_t props,
   p_constraintWrite = lmm_constraint_new(maxminSystem, this, bwrite);
 }
 
-Storage::~Storage(){
+void Storage::terminate()
+{
   surf_callback_emit(storageDestructedCallbacks, this);
+  Resource::terminate();
+}
+
+Storage::~Storage()
+{
   xbt_dict_free(&p_content);
   xbt_dynar_free(&p_writeActions);
   free(p_typeId);

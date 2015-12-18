@@ -32,7 +32,9 @@ class XBT_PRIVATE HostCLM03Action;
 class HostCLM03Model : public HostModel {
 public:
   HostCLM03Model(): HostModel(){}
+protected:
   ~HostCLM03Model() {}
+private:
   Host *createHost(const char *name, RoutingEdge *netElm, Cpu *cpu, xbt_dict_t props) override;
   double shareResources(double now) override;
 

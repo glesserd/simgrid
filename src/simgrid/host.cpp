@@ -66,8 +66,10 @@ int USER_HOST_LEVEL;
 #include "src/surf/cpu_interface.hpp"
 #include "src/surf/surf_routing.hpp"
 
-static XBT_INLINE void surf_cpu_free(void *r) {
-  delete static_cast<simgrid::surf::Cpu*>(r);
+static XBT_INLINE void surf_cpu_free(void *r)
+{
+  simgrid::surf::Cpu::destroy(
+    static_cast<simgrid::surf::Cpu*>(r));
 }
 static XBT_INLINE void routing_asr_host_free(void *p) {
   delete static_cast<simgrid::surf::RoutingEdge*>(p);

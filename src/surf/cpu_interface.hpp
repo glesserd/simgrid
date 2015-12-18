@@ -136,7 +136,10 @@ public:
   Cpu(simgrid::surf::Model *model, const char *name,
 	  int core, double speedPeak, double speedScale);
 
+protected:
   ~Cpu();
+  void terminate();
+public:
 
   /**
    * @brief Execute some quantity of computation

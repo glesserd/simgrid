@@ -26,7 +26,9 @@ class XBT_PRIVATE CpuCas01Action;
 class CpuCas01Model : public simgrid::surf::CpuModel {
 public:
   CpuCas01Model();
+protected:
   ~CpuCas01Model();
+public:
 
   double (CpuCas01Model::*shareResources)(double now);
   void (CpuCas01Model::*updateActionsState)(double now, double delta);

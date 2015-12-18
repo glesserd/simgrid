@@ -33,7 +33,7 @@ static XBT_INLINE void surf_storage_resource_free(void *r)
   // specific to storage
   simgrid::surf::Storage *storage = static_cast<simgrid::surf::Storage*>(r);
   // generic resource
-  delete storage;
+  simgrid::surf::Storage::destroy(storage);
 }
 
 static XBT_INLINE void routing_storage_host_free(void *r)

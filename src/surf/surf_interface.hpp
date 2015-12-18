@@ -455,8 +455,6 @@ public:
    */
   Resource(Model *model, const char *name, e_surf_resource_state_t stateInit);
 
-  virtual ~Resource();
-
   /** @brief Get the Model of the current Resource */
   Model *getModel();
 
@@ -488,7 +486,18 @@ public:
   /** @brief Set the [state](\ref e_surf_resource_state_t) of the current Resource */
   virtual void setState(e_surf_resource_state_t state);
 
+protected:
+  virtual void terminate();
+  virtual ~Resource();
+public:
+  static void destroy(Resource *r)
+  {
+    r->terminate();
+    delete r;
+  }
+
 private:
+  bool destroyed_ = false;
   const char *p_name;
   Model *p_model;
   bool m_running;

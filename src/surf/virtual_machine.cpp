@@ -41,13 +41,18 @@ VirtualMachine::VirtualMachine(Model *model, const char *name, xbt_dict_t props,
   simgrid::Host::by_name_or_create(name)->set_facet<simgrid::surf::Host>(this);
 }
 
+void VirtualMachine::terminate()
+{
+  surf_callback_emit(VMDestructedCallbacks, this);
+  Host::terminate();
+}
+
 /*
  * A physical host does not disappear in the current SimGrid code, but a VM may
  * disappear during a simulation.
  */
 VirtualMachine::~VirtualMachine()
 {
-  surf_callback_emit(VMDestructedCallbacks, this);
   VMModel::ws_vms.erase(VMModel::vm_list_t::s_iterator_to(*this));
 }
 

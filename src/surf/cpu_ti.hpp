@@ -118,7 +118,9 @@ public:
   CpuTi(CpuTiModel *model, const char *name, xbt_dynar_t speedPeak,
         int pstate, double speedScale, tmgr_trace_t speedTrace, int core,
         e_surf_resource_state_t stateInitial, tmgr_trace_t stateTrace) ;
+protected:
   ~CpuTi();
+public:
 
   void updateState(tmgr_trace_event_t event_type, double value, double date);
   void updateActionsFinishTime(double now);

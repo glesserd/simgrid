@@ -87,7 +87,7 @@ Link **Link::linksList() {
 /** @brief destructor of the static data */
 void Link::linksExit() {
 	for (auto kv : *links)
-		delete (kv.second);
+		Link::destroy(kv.second);
 	delete links;
 }
 
@@ -217,9 +217,14 @@ Link::Link(simgrid::surf::NetworkModel *model, const char *name, xbt_dict_t prop
 
 }
 
-Link::~Link()
+void Link::terminate()
 {
   surf_callback_emit(networkLinkDestructedCallbacks, this);
+  Resource::terminate();
+}
+
+Link::~Link()
+{
 }
 
 bool Link::isUsed()

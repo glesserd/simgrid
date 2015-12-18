@@ -84,7 +84,9 @@ void HostModel::adjustWeightOfDummyCpuActions()
 void Host::init()
 {
   if (!LEVEL.valid()) {
-    LEVEL = simgrid::Host::add_level<simgrid::surf::Host>();
+    LEVEL = simgrid::Host::add_level<simgrid::surf::Host>([](void* p){
+      destroy(static_cast<Host*>(p));
+    });
     SURF_HOST_LEVEL = LEVEL.id();
   }
 }
@@ -107,8 +109,14 @@ Host::Host(simgrid::surf::Model *model, const char *name, xbt_dict_t props, lmm_
   p_params.ramsize = 0;
 }
 
-Host::~Host(){
+void Host::terminate()
+{
   surf_callback_emit(hostDestructedCallbacks, this);
+  Resource::terminate();
+}
+
+Host::~Host()
+{
 }
 
 void Host::attach(simgrid::Host* host)

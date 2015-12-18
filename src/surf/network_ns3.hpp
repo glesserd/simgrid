@@ -68,7 +68,9 @@ class NetworkNS3Link : public Link {
 public:
   NetworkNS3Link(NetworkNS3Model *model, const char *name, xbt_dict_t props,
   		         double bw_initial, double lat_initial);
+protected:
   ~NetworkNS3Link();
+public:
 
   void updateState(tmgr_trace_event_t event_type, double value, double date);
   double getLatency(){THROW_UNIMPLEMENTED;}

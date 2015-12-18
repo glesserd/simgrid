@@ -25,7 +25,9 @@ simgrid::xbt::FacetLevel<simgrid::Host, Cpu> Cpu::LEVEL;
 void Cpu::init()
 {
   if (!LEVEL.valid())
-    LEVEL = simgrid::Host::add_level<simgrid::surf::Cpu>();
+    LEVEL = simgrid::Host::add_level<simgrid::surf::Cpu>([](void* p) {
+      Cpu::destroy(static_cast<Cpu*>(p));
+    });
 }
 
 /*************
@@ -191,8 +193,14 @@ Cpu::Cpu(Model *model, const char *name,
 : Cpu(model, name, core, speedPeak, speedScale, SURF_RESOURCE_ON)
 {}
 
-Cpu::~Cpu(){
+void Cpu::terminate()
+{
   surf_callback_emit(cpuDestructedCallbacks, this);
+  Resource::terminate();
+}
+
+Cpu::~Cpu()
+{
   if (p_constraintCoreId){
     for (int i = 0; i < m_core; i++) {
 	  xbt_free(p_constraintCoreId[i]);

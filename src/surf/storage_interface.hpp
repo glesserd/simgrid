@@ -141,10 +141,13 @@ public:
           const char* type_id, char *content_name, char *content_type,
           sg_size_t size, char *attach);
 
+protected:
   /**
    * @brief Storage destructor
    */
   ~Storage();
+  void terminate() override;
+public:
 
   /**
    * @brief Check if the Storage is used

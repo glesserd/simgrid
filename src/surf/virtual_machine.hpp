@@ -65,8 +65,11 @@ public:
   VirtualMachine(simgrid::surf::Model *model, const char *name, xbt_dict_t props,
 		        RoutingEdge *netElm, Cpu *cpu);
 
+protected:
   /** @brief Destructor */
   ~VirtualMachine();
+  void terminate() override;
+public:
 
   void setState(e_surf_resource_state_t state);
 

@@ -3153,7 +3153,7 @@ SWIGEXPORT void JNICALL Java_org_simgrid_surf_SurfJNI_delete_1Resource(JNIEnv *j
   (void)jenv;
   (void)jcls;
   arg1 = *(simgrid::surf::Resource **)&jarg1; 
-  delete arg1;
+  ::simgrid::surf::Resource::destroy(arg1);
 }
 
 
@@ -3226,7 +3226,7 @@ SWIGEXPORT void JNICALL Java_org_simgrid_surf_SurfJNI_delete_1Cpu(JNIEnv *jenv, 
   (void)jenv;
   (void)jcls;
   arg1 = *(simgrid::surf::Cpu **)&jarg1; 
-  delete arg1;
+  ::simgrid::surf::Resource::destroy(arg1);
 }
 
 
@@ -3487,7 +3487,7 @@ SWIGEXPORT void JNICALL Java_org_simgrid_surf_SurfJNI_delete_1Link(JNIEnv *jenv,
   (void)jenv;
   (void)jcls;
   arg1 = *(simgrid::surf::Link **)&jarg1; 
-  delete arg1;
+  ::simgrid::surf::Resource::destroy(arg1);
 }
 
 

@@ -295,6 +295,7 @@ public:
                               tmgr_trace *state_trace)=0;
 };
 
+%feature("unref") Resource "::simgrid::surf::Resource::destroy($this);"
 class Resource {
 public:
   Resource();

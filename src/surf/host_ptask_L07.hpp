@@ -58,7 +58,9 @@ public:
 class CpuL07Model : public CpuModel {
 public:
   CpuL07Model(HostL07Model *hmodel) : CpuModel() {p_hostModel = hmodel;};
+protected:
   ~CpuL07Model() {surf_cpu_model_pm = NULL;};
+public:
   Cpu *createCpu(const char *name,  xbt_dynar_t speedPeak,
                           int pstate, double speedScale,
                           tmgr_trace_t speedTrace, int core,

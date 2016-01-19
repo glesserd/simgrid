@@ -219,7 +219,7 @@ void SIMIX_global_init(int *argc, char **argv)
 
     surf_init(argc, argv);      /* Initialize SURF structures */
     SIMIX_context_mod_init();
-    SIMIX_create_maestro_process();
+    SIMIX_maestro_create(nullptr, nullptr, 0, nullptr);
 
     /* context exception handlers */
     __xbt_running_ctx_fetch = SIMIX_process_get_running_context;

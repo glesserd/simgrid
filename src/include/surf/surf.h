@@ -257,7 +257,7 @@ XBT_PUBLIC(surf_action_t) surf_network_model_communicate(surf_network_model_t mo
  */
 XBT_PUBLIC(const char * ) surf_resource_name(surf_cpp_resource_t resource);
 static inline const char * surf_cpu_name(surf_cpu_t cpu) {
-	return surf_resource_name((surf_cpp_resource_t)cpu);
+  return surf_resource_name((surf_cpp_resource_t)cpu);
 }
 
 /** @brief Get the available speed of cpu associated to a host */
@@ -975,19 +975,8 @@ XBT_PUBLIC(void) parse_platform_file(const char *file);
 
 /* For the trace and trace:connect tag (store their content till the end of the parsing) */
 XBT_PUBLIC_DATA(xbt_dict_t) traces_set_list;
-XBT_PUBLIC_DATA(xbt_dict_t) trace_connect_list_host_avail;
-XBT_PUBLIC_DATA(xbt_dict_t) trace_connect_list_power;
-XBT_PUBLIC_DATA(xbt_dict_t) trace_connect_list_link_avail;
-XBT_PUBLIC_DATA(xbt_dict_t) trace_connect_list_bandwidth;
-XBT_PUBLIC_DATA(xbt_dict_t) trace_connect_list_latency;
-
-
-XBT_PUBLIC(double) get_cpu_speed(const char *power);
 
 XBT_PUBLIC(xbt_dict_t) get_as_router_properties(const char* name);
-
-int surf_get_nthreads(void);
-void surf_set_nthreads(int nthreads);
 
 /*
  * Returns the initial path. On Windows the initial path is

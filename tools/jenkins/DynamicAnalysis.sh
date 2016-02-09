@@ -20,7 +20,7 @@ do_cleanup() {
 
 ### Check the node installation
 
-for pkg in xsltproc valgrind 
+for pkg in xsltproc valgrind gcovr
 do
    if dpkg -l |grep -q $pkg 
    then 
@@ -29,13 +29,6 @@ do
       die "please install $pkg before proceeding" 
    fi
 done
-
-if [ -e /usr/local/gcovr-3.1/scripts/gcovr ] 
-then
-  echo "gcovr is installed, good."
-else
-  die "Please install /usr/local/gcovr-3.1/scripts/gcovr"
-fi
 
 ### Cleanup previous runs
 
@@ -60,7 +53,7 @@ cmake -Denable_documentation=OFF -Denable_lua=OFF -Denable_tracing=ON \
       -Denable_smpi=ON -Denable_smpi_MPICH3_testsuite=OFF -Denable_model-checking=OFF \
       -Denable_memcheck_xml=ON $WORKSPACE
 
-ctest -D ExperimentalBuild -V || true
+ctest -D ExperimentalBuild -V
 ctest -D ExperimentalMemCheck || true
 
 cd $WORKSPACE/build
@@ -78,12 +71,12 @@ cmake -Denable_documentation=OFF -Denable_lua=ON -Denable_java=ON -Denable_traci
       -Denable_smpi=ON -Denable_smpi_MPICH3_testsuite=ON -Denable_model-checking=ON \
       -Denable_memcheck=OFF -Denable_memcheck_xml=OFF -Denable_smpi_ISP_testsuite=ON -Denable_coverage=ON $WORKSPACE
 
-ctest -D ExperimentalBuild -V || true
+ctest -D ExperimentalBuild -V
 ctest -D ExperimentalTest || true
 ctest -D ExperimentalCoverage || true
 
 if [ -f Testing/TAG ] ; then
-   /usr/local/gcovr-3.1/scripts/gcovr -r .. --xml-pretty -e teshsuite.* -u -o $WORKSPACE/xml_coverage.xml
+   gcovr -r .. --xml-pretty -e teshsuite.* -u -o $WORKSPACE/xml_coverage.xml
    xsltproc $WORKSPACE/tools/jenkins/ctest2junit.xsl Testing/`head -n 1 < Testing/TAG`/Test.xml > CTestResults_memcheck.xml
    mv CTestResults_memcheck.xml $WORKSPACE
 fi

@@ -13,7 +13,6 @@ set(EXTRA_DIST
   src/include/smpi/smpi_interface.h
   src/include/surf/datatypes.h
   src/include/surf/maxmin.h
-  src/include/surf/random_mgr.h
   src/include/surf/surf.h
   src/include/surf/surfxml_parse_values.h
   src/include/xbt/win32_ucontext.h
@@ -61,7 +60,6 @@ set(EXTRA_DIST
   src/surf/ns3/ns3_interface.h
   src/surf/ns3/ns3_simulator.h
   src/surf/ns3/red-queue.h
-  src/surf/platf_generator_private.h
   src/surf/platform.hpp
   src/surf/plugins/energy.hpp
   src/surf/simgrid.dtd
@@ -81,7 +79,7 @@ set(EXTRA_DIST
   src/surf/surf_routing_none.hpp
   src/surf/surf_routing_private.hpp
   src/surf/surf_routing_vivaldi.hpp
-  src/surf/surfxml_parse.c
+  src/surf/surfxml_parse.cpp
   src/surf/vm_hl13.hpp
   src/surf/PropertyHolder.hpp
   src/surf/virtual_machine.hpp
@@ -121,6 +119,7 @@ set(EXTRA_DIST
   src/xbt/probes.h
   src/xbt/win32_ucontext.c
   tools/tesh/generate_tesh
+  tools/lualib.patch
   examples/smpi/mc/only_send_deterministic.tesh
   examples/smpi/mc/non_deterministic.tesh
   )
@@ -228,24 +227,24 @@ set(SMPI_SRC
   src/smpi/colls/smpi_intel_mpi_selector.c
   src/smpi/colls/smpi_openmpi_selector.c
   src/smpi/colls/smpi_mvapich2_selector.c
-  src/smpi/instr_smpi.c
-  src/smpi/smpi_base.c
-  src/smpi/smpi_bench.c
+  src/smpi/instr_smpi.cpp
+  src/smpi/smpi_base.cpp
+  src/smpi/smpi_bench.cpp
   src/smpi/smpi_memory.cpp
-  src/smpi/smpi_c99.c
-  src/smpi/smpi_coll.c
-  src/smpi/smpi_comm.c
-  src/smpi/smpi_deployment.c
-  src/smpi/smpi_dvfs.c
-  src/smpi/smpi_global.c
-  src/smpi/smpi_group.c
-  src/smpi/smpi_mpi.c
-  src/smpi/smpi_mpi_dt.c
-  src/smpi/smpi_pmpi.c
-  src/smpi/smpi_replay.c
-  src/smpi/smpi_rma.c
-  src/smpi/smpi_topo.c
-  src/smpi/smpi_f77.c
+  src/smpi/smpi_c99.cpp
+  src/smpi/smpi_coll.cpp
+  src/smpi/smpi_comm.cpp
+  src/smpi/smpi_deployment.cpp
+  src/smpi/smpi_dvfs.cpp
+  src/smpi/smpi_global.cpp
+  src/smpi/smpi_group.cpp
+  src/smpi/smpi_mpi.cpp
+  src/smpi/smpi_mpi_dt.cpp
+  src/smpi/smpi_pmpi.cpp
+  src/smpi/smpi_replay.cpp
+  src/smpi/smpi_rma.cpp
+  src/smpi/smpi_topo.cpp
+  src/smpi/smpi_f77.cpp
   )
 
 set(XBT_SRC
@@ -313,7 +312,7 @@ set(SURF_SRC
   src/surf/cpu_ti.cpp
   src/surf/fair_bottleneck.cpp
   src/surf/instr_routing.cpp
-  src/surf/instr_surf.c
+  src/surf/instr_surf.cpp
   src/surf/lagrange.cpp
   src/surf/maxmin.cpp
   src/surf/network_cm02.cpp
@@ -321,10 +320,8 @@ set(SURF_SRC
   src/surf/network_interface.cpp
   src/surf/network_smpi.cpp
   src/surf/network_ib.cpp
-  src/surf/platf_generator.c
   src/surf/plugins/energy.cpp
   src/surf/PropertyHolder.cpp
-  src/surf/random_mgr.c
   src/surf/sg_platf.cpp
   src/surf/storage_interface.cpp
   src/surf/storage_n11.cpp
@@ -340,8 +337,9 @@ set(SURF_SRC
   src/surf/surf_routing_generic.cpp
   src/surf/surf_routing_none.cpp
   src/surf/surf_routing_vivaldi.cpp
-  src/surf/surfxml_parse.c
-  src/surf/surfxml_parseplatf.c
+  src/surf/surfxml_private.h
+  src/surf/surfxml_parse.cpp
+  src/surf/surfxml_parseplatf.cpp
   src/surf/trace_mgr.hpp
   src/surf/trace_mgr.cpp
   src/surf/vm_hl13.cpp
@@ -385,7 +383,7 @@ else()
 endif()
 
 # Boost context may not be available
-if (HAVE_BOOST_CONTEXT)
+if (HAVE_BOOST_CONTEXTS)
   set(SIMIX_SRC
       ${SIMIX_SRC}
       src/simix/BoostContext.hpp
@@ -525,10 +523,10 @@ list(APPEND JMSG_JAVA_SRC ${JTRACE_JAVA_SRC})
 
 set(LUA_SRC
   src/bindings/lua/factories/host.lua
-  src/bindings/lua/lua_host.c
-  src/bindings/lua/lua_platf.c
-  src/bindings/lua/lua_debug.c
-  src/bindings/lua/simgrid_lua.c
+  src/bindings/lua/lua_host.cpp
+  src/bindings/lua/lua_platf.cpp
+  src/bindings/lua/lua_debug.cpp
+  src/bindings/lua/simgrid_lua.cpp
   )
 
 set(TRACING_SRC
@@ -550,10 +548,10 @@ set(JEDULE_SRC
   include/simgrid/jedule/jedule_output.h
   include/simgrid/jedule/jedule_platform.h
   include/simgrid/jedule/jedule_sd_binding.h
-  src/instr/jedule/jedule_events.c
-  src/instr/jedule/jedule_output.c
-  src/instr/jedule/jedule_platform.c
-  src/instr/jedule/jedule_sd_binding.c
+  src/instr/jedule/jedule_events.cpp
+  src/instr/jedule/jedule_output.cpp
+  src/instr/jedule/jedule_platform.cpp
+  src/instr/jedule/jedule_sd_binding.cpp
   )
 
 set(MC_SRC_BASE
@@ -659,7 +657,6 @@ set(headers_to_install
   include/simgrid/modelchecker.h
   include/simgrid/forward.h
   include/simgrid/platf.h
-  include/simgrid/platf_generator.h
   include/simgrid/simix.h
   include/simgrid/simix.hpp
   include/simgrid/host.h
@@ -677,7 +674,6 @@ set(headers_to_install
   include/simgrid/plugins/energy.h
   include/smpi/mpi.h
   include/smpi/smpi.h
-  include/smpi/smpi_cocci.h
   include/smpi/smpi_main.h
   include/surf/simgrid_dtd.h
   include/surf/surf_routing.h
@@ -728,8 +724,8 @@ set(source_of_generated_headers
   src/context_sysv_config.h.in)
 
 ### depend of some variables setted upper
-# -->CONTEXT_THREADS CONTEXT_UCONTEXT
-if(${CONTEXT_THREADS}) #pthread
+# -->HAVE_THREAD_CONTEXTS HAVE_UCONTEXT_CONTEXTS
+if(${HAVE_THREAD_CONTEXTS}) #pthread
   set(SURF_SRC
     ${SURF_SRC}
     src/simix/ThreadContext.cpp
@@ -743,7 +739,7 @@ else() # NOT pthread
     )
 endif()
 
-if(${CONTEXT_THREADS}) #pthread
+if(${HAVE_THREAD_CONTEXTS}) #pthread
   set(SURF_SRC
     ${SURF_SRC}
     src/xbt/xbt_os_thread.c
@@ -755,7 +751,7 @@ else() # NOT pthread
     )
 endif()
 
-if(${CONTEXT_UCONTEXT}) #ucontext
+if(${HAVE_UCONTEXT_CONTEXTS}) #ucontext
   set(SURF_SRC
     ${SURF_SRC}
     src/simix/UContext.cpp
@@ -877,14 +873,14 @@ set(DOC_SOURCES
   doc/doxygen/header.html
   doc/doxygen/help.doc
   doc/doxygen/index.doc
-  doc/doxygen/inside_ci.doc
+  doc/doxygen/inside.doc
+  doc/doxygen/inside_tests.doc
   doc/doxygen/inside_cmake.doc
   doc/doxygen/inside_doxygen.doc
   doc/doxygen/inside_extending.doc
   doc/doxygen/inside_release.doc
   doc/doxygen/install.doc
-  doc/doxygen/internals.doc
-  doc/doxygen/introduction.doc
+  doc/doxygen/tutorial.doc
   doc/doxygen/module-msg.doc
   doc/doxygen/module-sd.doc
   doc/doxygen/module-simix.doc
@@ -952,12 +948,6 @@ set(DOC_IMG
   ${CMAKE_HOME_DIRECTORY}/doc/webcruft/simgrid_logo_2011_small.png
   ${CMAKE_HOME_DIRECTORY}/doc/webcruft/simgrid_logo_win.bmp
   ${CMAKE_HOME_DIRECTORY}/doc/webcruft/simgrid_logo_win_2011.bmp
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_01.png
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_02.png
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_03.png
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_04.png
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_05.png
-  ${CMAKE_HOME_DIRECTORY}/doc/webcruft/win_install_06.png
   ${CMAKE_HOME_DIRECTORY}/doc/webcruft/smpi_simgrid_alltoall_pair_16.png
   ${CMAKE_HOME_DIRECTORY}/doc/webcruft/smpi_simgrid_alltoall_ring_16.png
   )
@@ -1070,6 +1060,7 @@ set(EXAMPLES_CMAKEFILES_TXT
 set(TESHSUITE_CMAKEFILES_TXT
   teshsuite/bug-17132/CMakeLists.txt
   teshsuite/java/CMakeLists.txt
+  teshsuite/java/semaphore/CMakeLists.txt
   teshsuite/java/sleep_host_off/CMakeLists.txt
   teshsuite/lua/lua_platforms.tesh
   teshsuite/mc/CMakeLists.txt
@@ -1245,9 +1236,7 @@ set(PLATFORMS_EXAMPLES
   examples/platforms/clusters_routing_full.xml
   examples/platforms/crosstraffic.xml
   examples/platforms/conf/gridpp_grid_2004.conf
-  examples/platforms/conf/gridpp_grid_2004.xml
   examples/platforms/conf/lcg_sept2004_grid.conf
-  examples/platforms/conf/lcg_sept2004_grid.xml
   examples/platforms/conf/transform_optorsim_platform.pl
   examples/platforms/config.xml
   examples/platforms/config_tracing.xml
@@ -1261,8 +1250,6 @@ set(PLATFORMS_EXAMPLES
   examples/platforms/g5k.xml
   examples/platforms/generation_scripts/create_hierarchical_clusters.pl
   examples/platforms/generation_scripts/enhancedDTDwithHierarchicalCluster.pl
-  examples/platforms/generation_scripts/generate_g5k_platform.pl
-  examples/platforms/generation_scripts/generate_g5k_platform_cabinets.pl
   examples/platforms/griffon.xml
   examples/platforms/meta_cluster.xml
   examples/platforms/multicore_machine.xml
@@ -1276,7 +1263,6 @@ set(PLATFORMS_EXAMPLES
   examples/platforms/storage/content/small_content.txt
   examples/platforms/storage/content/storage_content.txt
   examples/platforms/storage/content/win_storage_content.txt
-  examples/platforms/storage/remote_io.deployment.xml
   examples/platforms/storage/remote_io.xml
   examples/platforms/storage/storage.xml
   examples/platforms/small_platform.xml

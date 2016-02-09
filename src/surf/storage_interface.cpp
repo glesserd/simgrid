@@ -38,7 +38,7 @@ simgrid::xbt::signal<void(simgrid::surf::StorageAction*, e_surf_action_state_t, 
  *********/
 
 StorageModel::StorageModel()
-	: Model()
+  : Model()
 {
   p_storageList = NULL;
 }
@@ -140,7 +140,7 @@ bool Storage::isUsed()
   return false;
 }
 
-void Storage::updateState(tmgr_trace_iterator_t /*event_type*/, double /*value*/, double /*date*/)
+void Storage::apply_event(tmgr_trace_iterator_t /*event*/, double /*value*/)
 {
   THROW_UNIMPLEMENTED;
 }

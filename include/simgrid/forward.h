@@ -16,6 +16,7 @@ namespace simgrid {
     class Host;
   }
   namespace surf {
+    class Resource;
     class Cpu;
     class NetCard;
     class As;
@@ -27,27 +28,27 @@ namespace simgrid {
 }
 
 typedef simgrid::s4u::Host simgrid_Host;
+typedef simgrid::surf::As surf_As;
 typedef simgrid::surf::Cpu surf_Cpu;
 typedef simgrid::surf::NetCard surf_NetCard;
-typedef simgrid::surf::As surf_As;
 typedef simgrid::surf::Link Link;
-typedef simgrid::trace_mgr::future_evt_set sg_future_evt_set;
+typedef simgrid::surf::Resource surf_Resource;
 
 #else
 
 typedef struct simgrid_Host simgrid_Host;
+typedef struct surf_As surf_As;
 typedef struct surf_Cpu surf_Cpu;
 typedef struct surf_NetCard surf_NetCard;
-typedef struct surf_As surf_As;
+typedef struct surf_Resource surf_Resource;
 typedef struct Link Link;
-typedef struct future_evt_set sg_future_evt_set;
 #endif
 
 typedef simgrid_Host* sg_host_t;
+typedef surf_As *AS_t;
 typedef surf_Cpu *surf_cpu_t;
 typedef surf_NetCard *sg_netcard_t;
-typedef surf_As *AS_t;
-typedef sg_future_evt_set *sg_future_evt_set_t;
+typedef surf_Resource *sg_resource_t;
 
 // Types which are in fact dictelmt:
 typedef xbt_dictelm_t sg_storage_t;
@@ -64,7 +65,7 @@ typedef enum {
 
 typedef enum {
   SURF_TRACE_CONNECT_KIND_HOST_AVAIL = 4,
-  SURF_TRACE_CONNECT_KIND_POWER = 3,
+  SURF_TRACE_CONNECT_KIND_SPEED = 3,
   SURF_TRACE_CONNECT_KIND_LINK_AVAIL = 2,
   SURF_TRACE_CONNECT_KIND_BANDWIDTH = 1,
   SURF_TRACE_CONNECT_KIND_LATENCY = 0
@@ -243,7 +244,7 @@ typedef struct {
   sg_size_t size;
 } s_sg_platf_storage_type_cbarg_t, *sg_platf_storage_type_cbarg_t;
 
-#define SG_PLATF_STORAGE_TYPE_INITIALIZER {NULL,NULL,NULL,NULL,NULL,NULL}
+#define SG_PLATF_STORAGE_TYPE_INITIALIZER {NULL,NULL,NULL,NULL,NULL,NULL,0}
 
 typedef struct {
   const char* type_id;

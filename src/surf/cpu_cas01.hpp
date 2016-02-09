@@ -32,8 +32,7 @@ public:
                           tmgr_trace_t speedTrace, int core,
                           int initiallyOn,
                           tmgr_trace_t state_trace) override;
-  double shareResourcesFull(double now) override;
-  void addTraces() override;
+  double next_occuring_event_full(double now) override;
   ActionList *p_cpuRunningActionSetThatDoesNotNeedBeingChecked;
 };
 
@@ -42,14 +41,13 @@ public:
  ************/
 
 class CpuCas01 : public Cpu {
-  friend CpuCas01Model;
 public:
   CpuCas01(CpuCas01Model *model, simgrid::s4u::Host *host, xbt_dynar_t speedPeak,
         int pstate, double speedScale, tmgr_trace_t speedTrace, int core,
         int initiallyOn, tmgr_trace_t stateTrace) ;
   ~CpuCas01();
-  void updateState(tmgr_trace_iterator_t event_type, double value, double date) override;
-  CpuAction *execute(double size) override;
+  void apply_event(tmgr_trace_iterator_t event, double value) override;
+  CpuAction *execution_start(double size) override;
   CpuAction *sleep(double duration) override;
 
   bool isUsed() override;
@@ -58,18 +56,13 @@ public:
 
 protected:
   void onSpeedChange() override;
-
-private:
-
-  tmgr_trace_iterator_t p_stateEvent = nullptr;
-  tmgr_trace_iterator_t p_speedEvent = nullptr;
 };
 
 /**********
  * Action *
  **********/
 class CpuCas01Action: public CpuAction {
-  friend CpuAction *CpuCas01::execute(double size);
+  friend CpuAction *CpuCas01::execution_start(double size);
   friend CpuAction *CpuCas01::sleep(double duration);
 public:
   CpuCas01Action(Model *model, double cost, bool failed, double speed,

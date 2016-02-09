@@ -54,7 +54,7 @@ void sg_platf_exit(void) {
 void sg_platf_new_host(sg_platf_host_cbarg_t host)
 {
   xbt_assert(! sg_host_by_name(host->id),
-		     "Refusing to create a second host named '%s'.", host->id);
+         "Refusing to create a second host named '%s'.", host->id);
 
   simgrid::surf::NetCard *net = NULL;
   simgrid::surf::As* current_routing = routing_get_current();
@@ -63,7 +63,7 @@ void sg_platf_new_host(sg_platf_host_cbarg_t host)
 
   sg_host_t h = simgrid::s4u::Host::by_name_or_create(host->id);
   simgrid::surf::Cpu *cpu = surf_cpu_model_pm->createCpu(
-		h,
+    h,
         host->speed_peak,
         host->pstate,
         host->speed_scale,
@@ -108,7 +108,7 @@ void sg_platf_new_router(sg_platf_router_cbarg_t router)
     xbt_dynar_t ctn_str = xbt_str_split_str(router->coord, " ");
     xbt_dynar_t ctn = xbt_dynar_new(sizeof(double),NULL);
     xbt_dynar_foreach(ctn_str,cursor, str) {
-      double val = atof(str);
+      double val = xbt_str_parse_double(str, "Invalid coordinate: %s");
       xbt_dynar_push(ctn,&val);
     }
     xbt_dynar_shrink(ctn, 0);
@@ -166,13 +166,13 @@ void sg_platf_new_storage(sg_platf_storage_cbarg_t storage)
       ((storage_type_t) stype)->type_id,
       storage->content,
       storage->content_type,
-	  storage->properties);
+    storage->properties);
 
   surf_storage_model->createStorage(storage->id,
                                      ((storage_type_t) stype)->type_id,
                                      storage->content,
                                      storage->content_type,
-									 storage->properties,
+                   storage->properties,
                                      storage->attach);
 }
 void sg_platf_new_storage_type(sg_platf_storage_type_cbarg_t storage_type){
@@ -271,8 +271,27 @@ void sg_platf_new_process(sg_platf_process_cbarg_t process)
     xbt_die("Cannot create process without SIMIX.");
 
   sg_host_t host = sg_host_by_name(process->host);
-  if (!host)
-    THROWF(arg_error, 0, "Host '%s' unknown", process->host);
+  if (!host) {
+    // The requested host does not exist. Do a nice message to the user
+    char *tmp = bprintf("Cannot create process '%s': host '%s' does not exist\nExisting hosts: '",process->function, process->host);
+    xbt_strbuff_t msg = xbt_strbuff_new_from(tmp);
+    free(tmp);
+    xbt_dynar_t all_hosts = xbt_dynar_sort_strings(sg_hosts_as_dynar());
+    simgrid::s4u::Host* host;
+    unsigned int cursor;
+    xbt_dynar_foreach(all_hosts,cursor, host) {
+      xbt_strbuff_append(msg,host->name().c_str());
+      xbt_strbuff_append(msg,"', '");
+      if (msg->used > 1024) {
+        msg->data[msg->used-3]='\0';
+        msg->used -= 3;
+
+        xbt_strbuff_append(msg," ...(list truncated)......");// That will be shortened by 3 chars when existing the loop
+      }
+    }
+    msg->data[msg->used-3]='\0';
+    xbt_die("%s", msg->data);
+  }
   xbt_main_func_t parse_code = SIMIX_get_registered_function(process->function);
   xbt_assert(parse_code, "Function '%s' unknown", process->function);
 

@@ -118,7 +118,7 @@ xbt_dict_t simcall_asr_get_properties(const char *name)
  * \param affinity_mask
  * \return A new SIMIX execution synchronization
  */
-smx_synchro_t simcall_process_execute(const char *name,
+smx_synchro_t simcall_execution_start(const char *name,
                                     double flops_amount,
                                     double priority, double bound, unsigned long affinity_mask)
 {
@@ -126,7 +126,7 @@ smx_synchro_t simcall_process_execute(const char *name,
   xbt_assert(std::isfinite(flops_amount), "flops_amount is not finite!");
   xbt_assert(std::isfinite(priority), "priority is not finite!");
 
-  return simcall_BODY_process_execute(name, flops_amount, priority, bound, affinity_mask);
+  return simcall_BODY_execution_start(name, flops_amount, priority, bound, affinity_mask);
 }
 
 /**
@@ -144,7 +144,7 @@ smx_synchro_t simcall_process_execute(const char *name,
  * \param rate the SURF action rate
  * \return A new SIMIX execution synchronization
  */
-smx_synchro_t simcall_process_parallel_execute(const char *name,
+smx_synchro_t simcall_execution_parallel_start(const char *name,
                                          int host_nb,
                                          sg_host_t *host_list,
                                          double *flops_amount,
@@ -167,7 +167,7 @@ smx_synchro_t simcall_process_parallel_execute(const char *name,
   xbt_assert(std::isfinite(amount), "amount is not finite!");
   xbt_assert(std::isfinite(rate), "rate is not finite!");
 
-  return simcall_BODY_process_parallel_execute(name, host_nb, host_list,
+  return simcall_BODY_execution_parallel_start(name, host_nb, host_list,
                                             flops_amount,
                                             bytes_amount,
                                             amount, rate);
@@ -181,9 +181,9 @@ smx_synchro_t simcall_process_parallel_execute(const char *name,
  * Destroys a synchro, freeing its memory. This function cannot be called if there are a conditional waiting for it.
  * \param execution The execution synchro to destroy
  */
-void simcall_process_execution_destroy(smx_synchro_t execution)
+void simcall_execution_destroy(smx_synchro_t execution)
 {
-  simcall_BODY_process_execution_destroy(execution);
+  simcall_BODY_execution_destroy(execution);
 }
 
 /**
@@ -193,9 +193,9 @@ void simcall_process_execution_destroy(smx_synchro_t execution)
  * This functions stops the execution. It calls a surf function.
  * \param execution The execution synchro to cancel
  */
-void simcall_process_execution_cancel(smx_synchro_t execution)
+void simcall_execution_cancel(smx_synchro_t execution)
 {
-  simcall_BODY_process_execution_cancel(execution);
+  simcall_BODY_execution_cancel(execution);
 }
 
 /**
@@ -205,9 +205,9 @@ void simcall_process_execution_cancel(smx_synchro_t execution)
  * \param execution The execution synchro
  * \return The remaining amount
  */
-double simcall_process_execution_get_remains(smx_synchro_t execution)
+double simcall_execution_get_remains(smx_synchro_t execution)
 {
-  return simcall_BODY_process_execution_get_remains(execution);
+  return simcall_BODY_execution_get_remains(execution);
 }
 
 /**
@@ -217,9 +217,9 @@ double simcall_process_execution_get_remains(smx_synchro_t execution)
  * \param execution The execution synchro
  * \return The state
  */
-e_smx_state_t simcall_process_execution_get_state(smx_synchro_t execution)
+e_smx_state_t simcall_execution_get_state(smx_synchro_t execution)
 {
-  return simcall_BODY_process_execution_get_state(execution);
+  return simcall_BODY_execution_get_state(execution);
 }
 
 /**
@@ -230,12 +230,12 @@ e_smx_state_t simcall_process_execution_get_state(smx_synchro_t execution)
  * \param execution The execution synchro
  * \param priority The new priority
  */
-void simcall_process_execution_set_priority(smx_synchro_t execution, double priority)
+void simcall_execution_set_priority(smx_synchro_t execution, double priority)
 {
   /* checking for infinite values */
   xbt_assert(std::isfinite(priority), "priority is not finite!");
 
-  simcall_BODY_process_execution_set_priority(execution, priority);
+  simcall_BODY_execution_set_priority(execution, priority);
 }
 
 /**
@@ -246,9 +246,9 @@ void simcall_process_execution_set_priority(smx_synchro_t execution, double prio
  * \param execution The execution synchro
  * \param bound The new bound
  */
-void simcall_process_execution_set_bound(smx_synchro_t execution, double bound)
+void simcall_execution_set_bound(smx_synchro_t execution, double bound)
 {
-  simcall_BODY_process_execution_set_bound(execution, bound);
+  simcall_BODY_execution_set_bound(execution, bound);
 }
 
 /**
@@ -260,9 +260,9 @@ void simcall_process_execution_set_bound(smx_synchro_t execution, double bound)
  * \param host Host
  * \param mask Affinity mask
  */
-void simcall_process_execution_set_affinity(smx_synchro_t execution, sg_host_t host, unsigned long mask)
+void simcall_execution_set_affinity(smx_synchro_t execution, sg_host_t host, unsigned long mask)
 {
-  simcall_BODY_process_execution_set_affinity(execution, host, mask);
+  simcall_BODY_execution_set_affinity(execution, host, mask);
 }
 
 /**
@@ -271,9 +271,9 @@ void simcall_process_execution_set_affinity(smx_synchro_t execution, sg_host_t h
  *
  * \param execution The execution synchro
  */
-e_smx_state_t simcall_process_execution_wait(smx_synchro_t execution)
+e_smx_state_t simcall_execution_wait(smx_synchro_t execution)
 {
-  return (e_smx_state_t) simcall_BODY_process_execution_wait(execution);
+  return (e_smx_state_t) simcall_BODY_execution_wait(execution);
 }
 
 
@@ -628,7 +628,7 @@ void simcall_process_set_kill_time(smx_process_t process, double kill_time)
  * \brief Get the kill time of a process (or 0 if unset).
  */
 double simcall_process_get_kill_time(smx_process_t process) {
-	return SIMIX_timer_get_date(process->kill_timer);
+  return SIMIX_timer_get_date(process->kill_timer);
 }
 
 /**
@@ -1035,15 +1035,6 @@ smx_mutex_t simcall_mutex_init(void)
  * \ingroup simix_synchro_management
  *
  */
-void simcall_mutex_destroy(smx_mutex_t mutex)
-{
-  simcall_BODY_mutex_destroy(mutex);
-}
-
-/**
- * \ingroup simix_synchro_management
- *
- */
 void simcall_mutex_lock(smx_mutex_t mutex)
 {
   simcall_BODY_mutex_lock(mutex);
@@ -1074,15 +1065,6 @@ void simcall_mutex_unlock(smx_mutex_t mutex)
 smx_cond_t simcall_cond_init(void)
 {
   return simcall_BODY_cond_init();
-}
-
-/**
- * \ingroup simix_synchro_management
- *
- */
-void simcall_cond_destroy(smx_cond_t cond)
-{
-  simcall_BODY_cond_destroy(cond);
 }
 
 /**
@@ -1131,15 +1113,6 @@ void simcall_cond_broadcast(smx_cond_t cond)
 smx_sem_t simcall_sem_init(int capacity)
 {
   return simcall_BODY_sem_init(capacity);
-}
-
-/**
- * \ingroup simix_synchro_management
- *
- */
-void simcall_sem_destroy(smx_sem_t sem)
-{
-  simcall_BODY_sem_destroy(sem);
 }
 
 /**

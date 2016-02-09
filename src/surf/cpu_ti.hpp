@@ -55,7 +55,7 @@ class CpuTiTgmr {
 public:
   CpuTiTgmr(trace_type type, double value)
     : m_type(type), m_value(value)
-	{};
+  {};
   CpuTiTgmr(tmgr_trace_t speedTrace, double value);
   ~CpuTiTgmr();
 
@@ -118,25 +118,26 @@ public:
         int initiallyOn, tmgr_trace_t stateTrace) ;
   ~CpuTi();
 
-  void updateState(tmgr_trace_iterator_t event_type, double value, double date) override;
+  void set_speed_trace(tmgr_trace_t trace) override;
+
+  void apply_event(tmgr_trace_iterator_t event, double value) override;
   void updateActionsFinishTime(double now);
+  void updateRemainingAmount(double now);
+
   bool isUsed() override;
-  CpuAction *execute(double size) override;
+  CpuAction *execution_start(double size) override;
   CpuAction *sleep(double duration) override;
   double getAvailableSpeed() override;
 
   void modified(bool modified);
 
   CpuTiTgmr *p_availTrace;       /*< Structure with data needed to integrate trace file */
-  tmgr_trace_iterator_t p_stateEvent = NULL; /*< trace file with states events (ON or OFF) */
-  tmgr_trace_iterator_t p_speedEvent = NULL; /*< trace file with availability events */
   ActionTiList *p_actionSet;        /*< set with all actions running on cpu */
   double m_sumPriority;          /*< the sum of actions' priority that are running on cpu */
   double m_lastUpdate = 0;       /*< last update of actions' remaining amount done */
 
   double current_frequency;
 
-  void updateRemainingAmount(double now);
 public:
   boost::intrusive::list_member_hook<> cpu_ti_hook;
 };
@@ -155,11 +156,9 @@ public:
   Cpu *createCpu(simgrid::s4u::Host *host,  xbt_dynar_t speedPeak,
                           int pstate, double speedScale,
                           tmgr_trace_t speedTrace, int core,
-                          int initiallyOn,
-                          tmgr_trace_t state_trace) override;
-  double shareResources(double now) override;
+                          int initiallyOn, tmgr_trace_t state_trace) override;
+  double next_occuring_event(double now) override;
   void updateActionsState(double now, double delta) override;
-  void addTraces() override;
 
   ActionList *p_runningActionSetThatDoesNotNeedBeingChecked;
   CpuTiList *p_modifiedCpu;

@@ -25,7 +25,7 @@ simgrid::trace_mgr::future_evt_set::~future_evt_set()
   xbt_heap_free(p_heap);
 }
 
-
+#if 0 /* probabilistic dead code. Should be reimplemented, not killed (please) */
 /**
  * \brief Create a #tmgr_trace_t from probabilist generators
  *
@@ -239,6 +239,7 @@ double tmgr_event_generator_next_value(probabilist_event_generator_t generator)
 
   return generator->next_value;
 }
+#endif /* probabilistic dead code */
 
 tmgr_trace_t tmgr_trace_new_from_string(const char *id, const char *input,
                                         double periodicity)
@@ -263,8 +264,7 @@ tmgr_trace_t tmgr_trace_new_from_string(const char *id, const char *input,
               "Invalid periodicity %g (must be positive)", periodicity);
 
   trace = xbt_new0(s_tmgr_trace_t, 1);
-  trace->type = e_trace_list;
-  trace->s_list.event_list = xbt_dynar_new(sizeof(s_tmgr_event_t), NULL);
+  trace->event_list = xbt_dynar_new(sizeof(s_tmgr_event_t), NULL);
 
   list = xbt_str_split(input, "\n\r");
 
@@ -292,11 +292,11 @@ tmgr_trace_t tmgr_trace_new_from_string(const char *id, const char *input,
         s_tmgr_event_t first_event;
         first_event.delta=event.delta;
         first_event.value=-1.0;
-        xbt_dynar_push(trace->s_list.event_list, &first_event);
+        xbt_dynar_push(trace->event_list, &first_event);
       }
     }
-    xbt_dynar_push(trace->s_list.event_list, &event);
-    last_event = (tmgr_event_t)xbt_dynar_get_ptr(trace->s_list.event_list, xbt_dynar_length(trace->s_list.event_list) - 1);
+    xbt_dynar_push(trace->event_list, &event);
+    last_event = (tmgr_event_t)xbt_dynar_get_ptr(trace->event_list, xbt_dynar_length(trace->event_list) - 1);
   }
   if (last_event)
     last_event->delta = periodicity;
@@ -343,12 +343,11 @@ tmgr_trace_t tmgr_empty_trace_new(void)
   s_tmgr_event_t event;
 
   trace = xbt_new0(s_tmgr_trace_t, 1);
-  trace->type = e_trace_list;
-  trace->s_list.event_list = xbt_dynar_new(sizeof(s_tmgr_event_t), NULL);
+  trace->event_list = xbt_dynar_new(sizeof(s_tmgr_event_t), NULL);
 
   event.delta = 0.0;
   event.value = 0.0;
-  xbt_dynar_push(trace->s_list.event_list, &event);
+  xbt_dynar_push(trace->event_list, &event);
 
   return trace;
 }
@@ -358,22 +357,13 @@ void tmgr_trace_free(tmgr_trace_t trace)
   if (!trace)
     return;
 
-  switch(trace->type) {
-    case e_trace_list:
-      xbt_dynar_free(&(trace->s_list.event_list));
-      break;
-    case e_trace_probabilist:
-      THROW_UNIMPLEMENTED;
-      break;
-  }
+  xbt_dynar_free(&(trace->event_list));
   free(trace);
 }
 
-/** Register a new trace into the future event set, and get an iterator over the integrated trace  */
+/** @brief Registers a new trace into the future event set, and get an iterator over the integrated trace  */
 tmgr_trace_iterator_t simgrid::trace_mgr::future_evt_set::add_trace(
-    tmgr_trace_t trace,
-    double start_time,
-    void *resource)
+    tmgr_trace_t trace, double start_time, surf::Resource *resource)
 {
   tmgr_trace_iterator_t trace_iterator = NULL;
 
@@ -382,17 +372,16 @@ tmgr_trace_iterator_t simgrid::trace_mgr::future_evt_set::add_trace(
   trace_iterator->idx = 0;
   trace_iterator->resource = resource;
 
-  if(trace->type == e_trace_list) {
-    xbt_assert((trace_iterator->idx < xbt_dynar_length(trace->s_list.event_list)),
-              "You're referring to an event that does not exist!");
-  }
+  xbt_assert((trace_iterator->idx < xbt_dynar_length(trace->event_list)),
+      "Your trace should have at least one event!");
 
   xbt_heap_push(p_heap, trace_iterator, start_time);
 
   return trace_iterator;
 }
 
-double simgrid::trace_mgr::future_evt_set::next_date()
+/** @brief returns the date of the next occurring event (pure function) */
+double simgrid::trace_mgr::future_evt_set::next_date() const
 {
   if (xbt_heap_size(p_heap))
     return (xbt_heap_maxkey(p_heap));
@@ -400,64 +389,33 @@ double simgrid::trace_mgr::future_evt_set::next_date()
     return -1.0;
 }
 
+/** @brief Retrieves the next occurring event, or NULL if none happens before #date */
 tmgr_trace_iterator_t simgrid::trace_mgr::future_evt_set::pop_leq(
-    double date,
-    double *value,
-    void** resource)
+    double date, double *value, simgrid::surf::Resource **resource)
 {
   double event_date = next_date();
-  tmgr_trace_iterator_t trace_iterator = NULL;
-  tmgr_event_t event = NULL;
-  tmgr_trace_t trace = NULL;
-  double event_delta;
-
   if (event_date > date)
     return NULL;
 
-  if (!(trace_iterator = (tmgr_trace_iterator_t)xbt_heap_pop(p_heap)))
+  tmgr_trace_iterator_t trace_iterator = (tmgr_trace_iterator_t)xbt_heap_pop(p_heap);
+  if (trace_iterator == NULL)
     return NULL;
 
-  trace = trace_iterator->trace;
+  tmgr_trace_t trace = trace_iterator->trace;
   *resource = trace_iterator->resource;
 
-  switch(trace->type) {
-    case e_trace_list:
+  tmgr_event_t event = (tmgr_event_t)xbt_dynar_get_ptr(trace->event_list, trace_iterator->idx);
 
-      event = (tmgr_event_t)xbt_dynar_get_ptr(trace->s_list.event_list, trace_iterator->idx);
+  *value = event->value;
 
-      *value = event->value;
-
-      if (trace_iterator->idx < xbt_dynar_length(trace->s_list.event_list) - 1) {
-        xbt_heap_push(p_heap, trace_iterator, event_date + event->delta);
-        trace_iterator->idx++;
-      } else if (event->delta > 0) {        /* Last element, checking for periodicity */
-        xbt_heap_push(p_heap, trace_iterator, event_date + event->delta);
-        trace_iterator->idx = 1; /* not 0 as the first event is a placeholder to handle when events really start */
-      } else {                      /* We don't need this trace_event anymore */
-        trace_iterator->free_me = 1;
-      }
-      break;
-
-    case e_trace_probabilist:
-
-      //FIXME : not tested yet
-      if(trace->s_probabilist.is_state_trace) {
-        *value = (double) trace->s_probabilist.next_event;
-        if(trace->s_probabilist.next_event == 0) {
-          event_delta = tmgr_event_generator_next_value(trace->s_probabilist.event_generator[0]);
-          trace->s_probabilist.next_event = 1;
-        } else {
-          event_delta = tmgr_event_generator_next_value(trace->s_probabilist.event_generator[1]);
-          trace->s_probabilist.next_event = 0;
-        }
-      } else {
-        event_delta = tmgr_event_generator_next_value(trace->s_probabilist.event_generator[0]);
-        *value = tmgr_event_generator_next_value(trace->s_probabilist.event_generator[1]);
-      }
-      xbt_heap_push(p_heap, trace_iterator, event_date + event_delta);
-      XBT_DEBUG("Generating a new event at date %f, with value %f", event_date + event_delta, *value);
-
-      break;
+  if (trace_iterator->idx < xbt_dynar_length(trace->event_list) - 1) {
+    xbt_heap_push(p_heap, trace_iterator, event_date + event->delta);
+    trace_iterator->idx++;
+  } else if (event->delta > 0) {        /* Last element, checking for periodicity */
+    xbt_heap_push(p_heap, trace_iterator, event_date + event->delta);
+    trace_iterator->idx = 1; /* not 0 as the first event is a placeholder to handle when events really start */
+  } else {                      /* We don't need this trace_event anymore */
+    trace_iterator->free_me = 1;
   }
 
   return trace_iterator;

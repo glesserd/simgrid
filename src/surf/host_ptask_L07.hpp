@@ -43,13 +43,11 @@ public:
   HostL07Model();
   ~HostL07Model();
 
-  double shareResources(double now) override;
+  double next_occuring_event(double now) override;
   void updateActionsState(double now, double delta) override;
   Action *executeParallelTask(int host_nb, sg_host_t *host_list,
-							  double *flops_amount, double *bytes_amount,
-							  double rate) override;
-
-  void addTraces() override;
+                double *flops_amount, double *bytes_amount,
+                double rate) override;
 };
 
 class CpuL07Model : public CpuModel {
@@ -62,8 +60,6 @@ public:
                           tmgr_trace_t speedTrace, int core,
                           int initiallyOn,
                           tmgr_trace_t state_trace) override;
-  void addTraces() override {DIE_IMPOSSIBLE;};
-
   HostL07Model *p_hostModel;
 };
 
@@ -72,18 +68,17 @@ public:
   NetworkL07Model(HostL07Model *hmodel, lmm_system_t sys);
   ~NetworkL07Model();
   Link* createLink(const char *name,
-		  double bw_initial,
-		  tmgr_trace_t bw_trace,
-		  double lat_initial,
-		  tmgr_trace_t lat_trace,
-		  int initiallyOn,
-		  tmgr_trace_t state_trace,
-		  e_surf_link_sharing_policy_t policy,
-		  xbt_dict_t properties) override;
+      double bw_initial,
+      tmgr_trace_t bw_trace,
+      double lat_initial,
+      tmgr_trace_t lat_trace,
+      int initiallyOn,
+      tmgr_trace_t state_trace,
+      e_surf_link_sharing_policy_t policy,
+      xbt_dict_t properties) override;
 
   Action *communicate(NetCard *src, NetCard *dst, double size, double rate) override;
-  void addTraces() override {DIE_IMPOSSIBLE;};
-  bool shareResourcesIsIdempotent() override {return true;}
+  bool next_occuring_event_isIdempotent() override {return true;}
 
   HostL07Model *p_hostModel;
 };
@@ -93,17 +88,14 @@ public:
  ************/
 
 class CpuL07 : public Cpu {
-  friend void HostL07Model::addTraces();
-  tmgr_trace_iterator_t p_stateEvent = nullptr;
-  tmgr_trace_iterator_t p_speedEvent = nullptr;
 public:
   CpuL07(CpuL07Model *model, simgrid::s4u::Host *host, xbt_dynar_t speedPeakList, int pstate,
-		 double power_scale, tmgr_trace_t power_trace,
+     double power_scale, tmgr_trace_t power_trace,
      int core, int initiallyOn, tmgr_trace_t state_trace);
   ~CpuL07();
   bool isUsed() override;
-  void updateState(tmgr_trace_iterator_t event_type, double value, double date) override;
-  Action *execute(double size) override;
+  void apply_event(tmgr_trace_iterator_t event, double value) override;
+  Action *execution_start(double size) override;
   Action *sleep(double duration) override;
 protected:
   void onSpeedChange() override;
@@ -112,7 +104,7 @@ protected:
 class LinkL07 : public Link {
 public:
   LinkL07(NetworkL07Model *model, const char* name, xbt_dict_t props,
-		  double bw_initial,
+      double bw_initial,
           tmgr_trace_t bw_trace,
           double lat_initial,
           tmgr_trace_t lat_trace,
@@ -121,42 +113,33 @@ public:
           e_surf_link_sharing_policy_t policy);
   ~LinkL07(){ };
   bool isUsed() override;
-  void updateState(tmgr_trace_iterator_t event_type, double value, double date) override;
-  double getBandwidth() override;
-  void updateBandwidth(double value, double date=surf_get_clock()) override;
-  void updateLatency(double value, double date=surf_get_clock()) override;
-
-  double m_bwCurrent;
-  tmgr_trace_iterator_t p_bwEvent;
+  void apply_event(tmgr_trace_iterator_t event, double value) override;
+  void updateBandwidth(double value) override;
+  void updateLatency(double value) override;
 };
 
 /**********
  * Action *
  **********/
 class L07Action : public CpuAction {
-  friend Action *CpuL07::execute(double size);
+  friend Action *CpuL07::execution_start(double size);
   friend Action *CpuL07::sleep(double duration);
   friend Action *HostL07Model::executeParallelTask(int host_nb,
                                                    sg_host_t*host_list,
                                                    double *flops_amount,
-												   double *bytes_amount,
+                                                   double *bytes_amount,
                                                    double rate);
 public:
   L07Action(Model *model, int host_nb,
           sg_host_t*host_list,
           double *flops_amount,
-		   double *bytes_amount,
+       double *bytes_amount,
           double rate);
  ~L07Action();
 
   void updateBound();
 
   int unref() override;
-  void suspend() override;
-  void resume() override;
-  void setMaxDuration(double duration) override;
-  void setPriority(double priority) override;
-  double getRemains() override;
 
   std::vector<NetCard*> * p_netcardList = new std::vector<NetCard*>();
   double *p_computationAmount;

@@ -41,7 +41,6 @@ int MSG_FILE_LEVEL;             //Msg file level
 
 int SIMIX_STORAGE_LEVEL;        //Simix storage level
 int MSG_STORAGE_LEVEL;          //Msg storage level
-int SD_STORAGE_LEVEL;           //Simdag storage level
 
 xbt_lib_t as_router_lib;
 int ROUTING_ASR_LEVEL;          //Routing level
@@ -146,7 +145,7 @@ void sg_platf_new_netcard(sg_platf_host_link_cbarg_t netcard)
   // If dynar is is greater than netcard id and if the host_link is already defined
   if((int)xbt_dynar_length(current_routing->p_linkUpDownList) > info->getId() &&
       xbt_dynar_get_as(current_routing->p_linkUpDownList, info->getId(), void*))
-	surf_parse_error("Host_link for '%s' is already defined!",netcard->id);
+  surf_parse_error("Host_link for '%s' is already defined!",netcard->id);
 
   XBT_DEBUG("Push Host_link for host '%s' to position %d", info->getName(), info->getId());
   xbt_dynar_set_as(current_routing->p_linkUpDownList, info->getId(), s_surf_parsing_link_up_down_t, link_up_down);
@@ -161,13 +160,13 @@ simgrid::surf::NetCard *routing_add_host(
   if (current_routing->p_hierarchy == SURF_ROUTING_NULL)
     current_routing->p_hierarchy = SURF_ROUTING_BASE;
   xbt_assert(!sg_host_by_name(host->id),
-		     "Reading a host, processing unit \"%s\" already exists", host->id);
+         "Reading a host, processing unit \"%s\" already exists", host->id);
 
   simgrid::surf::NetCard *netcard =
     new simgrid::surf::NetCardImpl(xbt_strdup(host->id),
-		                                    -1,
-		                                    SURF_NETWORK_ELEMENT_HOST,
-		                                    current_routing);
+                                        -1,
+                                        SURF_NETWORK_ELEMENT_HOST,
+                                        current_routing);
   netcard->setId(current_routing->parsePU(netcard));
   sg_host_t h = sg_host_by_name_or_create(host->id);
   h->pimpl_netcard = netcard;
@@ -189,7 +188,7 @@ simgrid::surf::NetCard *routing_add_host(
     xbt_dynar_t ctn_str = xbt_str_split_str(host->coord, " ");
     xbt_dynar_t ctn = xbt_dynar_new(sizeof(double),NULL);
     xbt_dynar_foreach(ctn_str,cursor, str) {
-      double val = atof(str);
+      double val = xbt_str_parse_double(str, "Invalid coordinate: %s");
       xbt_dynar_push(ctn,&val);
     }
     xbt_dynar_shrink(ctn, 0);
@@ -212,44 +211,6 @@ void sg_platf_new_trace(sg_platf_trace_cbarg_t trace)
     tmgr_trace = tmgr_trace_new_from_string(trace->id, trace->pc_data, trace->periodicity);
   }
   xbt_dict_set(traces_set_list, trace->id, (void *) tmgr_trace, NULL);
-}
-
-void sg_platf_trace_connect(sg_platf_trace_connect_cbarg_t trace_connect)
-{
-  xbt_assert(xbt_dict_get_or_null(traces_set_list, trace_connect->trace),
-              "Cannot connect trace %s to %s: trace unknown",
-              trace_connect->trace,
-              trace_connect->element);
-
-  switch (trace_connect->kind) {
-  case SURF_TRACE_CONNECT_KIND_HOST_AVAIL:
-    xbt_dict_set(trace_connect_list_host_avail,
-        trace_connect->trace,
-        xbt_strdup(trace_connect->element), NULL);
-    break;
-  case SURF_TRACE_CONNECT_KIND_POWER:
-    xbt_dict_set(trace_connect_list_power, trace_connect->trace,
-        xbt_strdup(trace_connect->element), NULL);
-    break;
-  case SURF_TRACE_CONNECT_KIND_LINK_AVAIL:
-    xbt_dict_set(trace_connect_list_link_avail,
-        trace_connect->trace,
-        xbt_strdup(trace_connect->element), NULL);
-    break;
-  case SURF_TRACE_CONNECT_KIND_BANDWIDTH:
-    xbt_dict_set(trace_connect_list_bandwidth,
-        trace_connect->trace,
-        xbt_strdup(trace_connect->element), NULL);
-    break;
-  case SURF_TRACE_CONNECT_KIND_LATENCY:
-    xbt_dict_set(trace_connect_list_latency, trace_connect->trace,
-        xbt_strdup(trace_connect->element), NULL);
-    break;
-  default:
-	surf_parse_error("Cannot connect trace %s to %s: kind of trace unknown",
-        trace_connect->trace, trace_connect->element);
-    break;
-  }
 }
 
 /**
@@ -830,13 +791,13 @@ void routing_new_cluster(sg_platf_cluster_cbarg_t cluster)
       memset(&host, 0, sizeof(host));
       host.id = host_id;
       if ((cluster->properties != NULL) && (!xbt_dict_is_empty(cluster->properties))) {
-    	  xbt_dict_cursor_t cursor=NULL;
-    	  char *key,*data;
-    	  host.properties = xbt_dict_new();
+        xbt_dict_cursor_t cursor=NULL;
+        char *key,*data;
+        host.properties = xbt_dict_new();
 
-    	  xbt_dict_foreach(cluster->properties,cursor,key,data) {
-    		  xbt_dict_set(host.properties, key, xbt_strdup(data),free);
-    	  }
+        xbt_dict_foreach(cluster->properties,cursor,key,data) {
+          xbt_dict_set(host.properties, key, xbt_strdup(data),free);
+        }
       }
       if (cluster->availability_trace && strcmp(cluster->availability_trace, "")) {
         xbt_dict_set(patterns, "radical", bprintf("%d", i), NULL);
@@ -934,7 +895,7 @@ void routing_new_cluster(sg_platf_cluster_cbarg_t cluster)
       }
       else {
       static_cast<AsCluster*>(current_routing)->create_links_for_node(cluster, i, rankId, rankId*
-    		  static_cast<AsCluster*>(current_routing)->p_nb_links_per_node
+          static_cast<AsCluster*>(current_routing)->p_nb_links_per_node
           + static_cast<AsCluster*>(current_routing)->p_has_loopback
           + static_cast<AsCluster*>(current_routing)->p_has_limiter );
       }
@@ -1213,10 +1174,10 @@ static void check_disk_attachment()
   simgrid::surf::NetCard *host_elm;
   xbt_lib_foreach(storage_lib, cursor, key, data) {
     if(xbt_lib_get_level(xbt_lib_get_elm_or_null(storage_lib, key), SURF_STORAGE_LEVEL) != NULL) {
-	  simgrid::surf::Storage *storage = static_cast<simgrid::surf::Storage*>(xbt_lib_get_level(xbt_lib_get_elm_or_null(storage_lib, key), SURF_STORAGE_LEVEL));
-	  host_elm = sg_netcard_by_name_or_null(storage->p_attach);
-	  if(!host_elm)
-		  surf_parse_error("Unable to attach storage %s: host %s doesn't exist.", storage->getName(), storage->p_attach);
+    simgrid::surf::Storage *storage = static_cast<simgrid::surf::Storage*>(xbt_lib_get_level(xbt_lib_get_elm_or_null(storage_lib, key), SURF_STORAGE_LEVEL));
+    host_elm = sg_netcard_by_name_or_null(storage->p_attach);
+    if(!host_elm)
+      surf_parse_error("Unable to attach storage %s: host %s doesn't exist.", storage->getName(), storage->p_attach);
     }
   }
 }
@@ -1259,8 +1220,8 @@ namespace surf {
 
 RoutingPlatf::~RoutingPlatf()
 {
-	xbt_dynar_free(&p_lastRoute);
-	finalize_rec(p_root);
+  xbt_dynar_free(&p_lastRoute);
+  finalize_rec(p_root);
 }
 
 }

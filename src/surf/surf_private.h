@@ -13,7 +13,6 @@
 #include "surf/maxmin.h"
 #include "xbt/log.h"
 #include "surf/surfxml_parse.h"
-#include "surf/random_mgr.h"
 #include "src/surf/trace_mgr.hpp"
 #include "src/instr/instr_private.h"
 #include "surf/surfxml_parse_values.h"
@@ -65,6 +64,9 @@ typedef enum {
   SURF_ROUTING_BASE,       /**< Base case: use simple link lists for routing     */
   SURF_ROUTING_RECURSIVE   /**< Recursive case: also return gateway informations */
 } e_surf_routing_hierarchy_t;
+
+extern XBT_PRIVATE simgrid::trace_mgr::future_evt_set *future_evt_set;
+
 
 XBT_PUBLIC(void) routing_model_create(void *loopback);
 XBT_PUBLIC(void) routing_exit(void);

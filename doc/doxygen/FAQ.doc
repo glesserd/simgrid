@@ -193,7 +193,7 @@ would have to do out of the simulator, and thus gives you information that
 you could also get in real settings to not hinder the realism of your
 simulation.
 
-\verbatim
+\code
 double get_host_load() {
    m_task_t task = MSG_task_create("test", 0.001, 0, NULL);
    double date = MSG_get_clock();
@@ -203,7 +203,7 @@ double get_host_load() {
    MSG_task_destroy(task);
    return (0.001/date);
 }
-\endverbatim
+\endcode
 
 Of course, it may not match your personal definition of "host load". In this
 case, please detail what you mean on the mailing list, and we will extend
@@ -218,7 +218,7 @@ account the time spent waiting for the other party to be
 ready). However, getting the *real* communication time is not really
 hard either. The following solution is a good starting point.
 
-\verbatim
+\code
 int sender()
 {
   m_task_t task = MSG_task_create("Task", task_comp_size, task_comm_size,
@@ -243,7 +243,7 @@ int receiver()
   MSG_task_destroy(task);
   return 0;
 }
-\endverbatim
+\endcode
 
 \subsection faq_MIA_SimDag SimDag related questions
 
@@ -256,10 +256,10 @@ model a data dependency between two DAG tasks t1 and t2, you have to
 create 3 SD_tasks: t1, t2 and c and add dependencies in the following
 way:
 
-\verbatim
+\code
 SD_task_dependency_add(NULL, NULL, t1, c);
 SD_task_dependency_add(NULL, NULL, c, t2);
-\endverbatim
+\endcode
 
 This way task t2 cannot start before the termination of communication c
 which in turn cannot start before t1 ends.
@@ -281,7 +281,7 @@ communicating process to make the whole scheduling process
 distributed. Here is an example of how you could do that. Assume T1
 has to be done before T2.
 
-\verbatim
+\code
  int your_agent(int argc, char *argv[] {
    ...
    T1 = MSG_task_create(...);
@@ -298,7 +298,7 @@ has to be done before T2.
      }
    }
  }
-\endverbatim
+\endcode
 
 If you decide that the distributed part is not that much important and that
 DAG is really the level of abstraction you want to work with, then you should
@@ -442,18 +442,12 @@ upgrade. Actually, you may want to read it (alongside with the NEWS
 file that highlights the most important changes) even before you
 upgrade your copy of SimGrid, too.
 
-Backward compatibility is very important to us, as we want to provide
-a scientific tool allowing to evaluate the code you write in several
-years, too. That being said, we sometimes change the interface to make
-them more usable to the users. When we do so, we always keep the old
-interface as DEPRECATED. If you still want to use them, you want to
-define the SIMGRID_DEPRECATED preprocessor symbol before loading the
-SimGrid files:
-
-@verbatim
-#define SIMGRID_DEPRECATED
-#include <msg/msg.h>
-@endverbatim
+We do our best to maintain the backward compatibility, but we
+sometimes have to fix the things that are too broken. If we happen to
+kill a feature that you were using, we are sorry. We think that you
+should update to the new way of doing things, but if you can't afford
+it, that's ok. Just stick to the last version that were working for
+you, and have a pleasant day.
 
 \subsection faq_trouble_lib_compil SimGrid compilation and installation problems
 
@@ -462,8 +456,9 @@ SimGrid files:
 We know only one reason for the configure to fail:
 
  - <b>You are using a broken build environment</b>\n
-   If symptom is that the configury magic complains about gcc not being able to build
-   executables, you are probably missing the libc6-dev package. Damn Ubuntu.
+   Try updating your cmake version. If symptom is that the configury
+   magic complains about gcc not being able to build executables, you
+   are probably missing the libc6-dev package. Damn Ubuntu. 
 
 If you experience other kind of issue, please get in touch with us. We are
 always interested in improving our portability to new systems.
@@ -501,46 +496,6 @@ If you compile your code statically (and if you use a pthread version
 of SimGrid), you must absolutely
 specify <tt>-lpthread</tt> on the linker command line. As usual, this should
 come after <tt>-lsimgrid</tt> on this command line.
-
-\subsubsection faq_trouble_lib_msg_deprecated "gcc: undefined reference to MSG_*"
-
-Since version 3.7 all the m_channel_t mecanism is deprecated. So functions
-about this mecanism may get removed in future releases.
-
-List of functions:
-
-\li XBT_PUBLIC(int) MSG_get_host_number(void);
-
-\li XBT_PUBLIC(m_host_t *) MSG_get_host_table(void);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_get_errno(void);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_get(m_task_t * task, m_channel_t channel);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_get_with_timeout(m_task_t * task, m_channel_t channel, double max_duration);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_get_from_host(m_task_t * task, int channel, m_host_t host);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_get_ext(m_task_t * task, int channel, double max_duration, m_host_t host);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_put(m_task_t task, m_host_t dest, m_channel_t channel);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_put_bounded(m_task_t task, m_host_t dest, m_channel_t channel, double max_rate);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_task_put_with_timeout(m_task_t task, m_host_t dest, m_channel_t channel, double max_duration);
-
-\li XBT_PUBLIC(int) MSG_task_Iprobe(m_channel_t channel);
-
-\li XBT_PUBLIC(int) MSG_task_probe_from(m_channel_t channel);
-
-\li XBT_PUBLIC(int) MSG_task_probe_from_host(int channel, m_host_t host);
-
-\li XBT_PUBLIC(MSG_error_t) MSG_set_channel_number(int number);
-
-\li XBT_PUBLIC(int) MSG_get_channel_number(void);
-
-If you want them you have to compile Simgrid v3.7 with option "-Denable_msg_deprecated=ON".
-Using them should print warning to inform what new function you have to use.
 
 \subsection faq_trouble_errors Runtime error messages
 

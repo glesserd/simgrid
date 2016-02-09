@@ -36,11 +36,11 @@ CpuTiTrace::CpuTiTrace(tmgr_trace_t speedTrace)
   double time = 0;
   int i = 0;
   p_timePoints = (double*) xbt_malloc0(sizeof(double) *
-                  (xbt_dynar_length(speedTrace->s_list.event_list) + 1));
+                  (xbt_dynar_length(speedTrace->event_list) + 1));
   p_integral = (double*) xbt_malloc0(sizeof(double) *
-                  (xbt_dynar_length(speedTrace->s_list.event_list) + 1));
-  m_nbPoints = xbt_dynar_length(speedTrace->s_list.event_list) + 1;
-  xbt_dynar_foreach(speedTrace->s_list.event_list, cpt, val) {
+                  (xbt_dynar_length(speedTrace->event_list) + 1));
+  m_nbPoints = xbt_dynar_length(speedTrace->event_list) + 1;
+  xbt_dynar_foreach(speedTrace->event_list, cpt, val) {
     p_timePoints[i] = time;
     p_integral[i] = integral;
     integral += val.delta * val.value;
@@ -302,7 +302,7 @@ double CpuTiTgmr::getPowerScale(double a)
   reduced_a = a - floor(a / m_lastTime) * m_lastTime;
   point = p_trace->binarySearch(p_trace->p_timePoints, reduced_a, 0,
                                 p_trace->m_nbPoints - 1);
-  xbt_dynar_get_cpy(p_speedTrace->s_list.event_list, point, &val);
+  xbt_dynar_get_cpy(p_speedTrace->event_list, point, &val);
   return val.value;
 }
 
@@ -330,8 +330,8 @@ CpuTiTgmr::CpuTiTgmr(tmgr_trace_t speedTrace, double value)
   }
 
   /* only one point available, fixed trace */
-  if (xbt_dynar_length(speedTrace->s_list.event_list) == 1) {
-    xbt_dynar_get_cpy(speedTrace->s_list.event_list, 0, &val);
+  if (xbt_dynar_length(speedTrace->event_list) == 1) {
+    xbt_dynar_get_cpy(speedTrace->event_list, 0, &val);
     m_type = TRACE_FIXED;
     m_value = val.value;
     return;
@@ -341,7 +341,7 @@ CpuTiTgmr::CpuTiTgmr(tmgr_trace_t speedTrace, double value)
   p_speedTrace = speedTrace;
 
   /* count the total time of trace file */
-  xbt_dynar_foreach(speedTrace->s_list.event_list, cpt, val) {
+  xbt_dynar_foreach(speedTrace->event_list, cpt, val) {
     total_time += val.delta;
   }
   p_trace = new CpuTiTrace(speedTrace);
@@ -385,17 +385,6 @@ int CpuTiTrace::binarySearch(double *array, double a, int low, int high)
 }
 }
 
-/*************
- * CallBacks *
- *************/
-
-static void cpu_ti_define_callbacks()
-{
-  simgrid::surf::on_postparse.connect([]() {
-    surf_cpu_model_pm->addTraces();
-  });
-}
-
 /*********
  * Model *
  *********/
@@ -406,13 +395,10 @@ void surf_cpu_model_init_ti()
   xbt_assert(!surf_cpu_model_vm,"CPU model already initialized. This should not happen.");
 
   surf_cpu_model_pm = new simgrid::surf::CpuTiModel();
-  surf_cpu_model_vm = new simgrid::surf::CpuTiModel();
+  xbt_dynar_push(all_existing_models, &surf_cpu_model_pm);
 
-  cpu_ti_define_callbacks();
-  simgrid::surf::Model *model_pm = static_cast<simgrid::surf::Model*>(surf_cpu_model_pm);
-  simgrid::surf::Model *model_vm = static_cast<simgrid::surf::Model*>(surf_cpu_model_vm);
-  xbt_dynar_push(all_existing_models, &model_pm);
-  xbt_dynar_push(all_existing_models, &model_vm);
+  surf_cpu_model_vm = new simgrid::surf::CpuTiModel();
+  xbt_dynar_push(all_existing_models, &surf_cpu_model_vm);
 }
 
 namespace simgrid {
@@ -438,8 +424,8 @@ CpuTiModel::~CpuTiModel()
 }
 
 Cpu *CpuTiModel::createCpu(simgrid::s4u::Host *host,
-	                       xbt_dynar_t speedPeak,
-	                       int pstate,
+                         xbt_dynar_t speedPeak,
+                         int pstate,
                            double speedScale,
                            tmgr_trace_t speedTrace,
                            int core,
@@ -450,11 +436,11 @@ Cpu *CpuTiModel::createCpu(simgrid::s4u::Host *host,
   xbt_assert(xbt_dynar_getfirst_as(speedPeak, double) > 0.0,
       "Speed has to be >0.0. Did you forget to specify the mandatory speed attribute?");
   CpuTi *cpu = new CpuTi(this, host, speedPeak, pstate, speedScale, speedTrace,
-		           core, initiallyOn, stateTrace);
+               core, initiallyOn, stateTrace);
   return cpu;
 }
 
-double CpuTiModel::shareResources(double now)
+double CpuTiModel::next_occuring_event(double now)
 {
   double min_action_duration = -1;
 
@@ -490,60 +476,6 @@ void CpuTiModel::updateActionsState(double now, double /*delta*/)
   }
 }
 
-void CpuTiModel::addTraces()
-{
-  xbt_dict_cursor_t cursor = NULL;
-  char *trace_name, *elm;
-
-  static int called = 0;
-
-  if (called)
-    return;
-  called = 1;
-
-/* connect all traces relative to hosts */
-  xbt_dict_foreach(trace_connect_list_host_avail, cursor, trace_name, elm) {
-    tmgr_trace_t trace = (tmgr_trace_t) xbt_dict_get_or_null(traces_set_list, trace_name);
-    CpuTi *cpu = static_cast<CpuTi*>(sg_host_by_name(elm)->pimpl_cpu);
-
-    xbt_assert(cpu, "Host %s undefined", elm);
-    xbt_assert(trace, "Trace %s undefined", trace_name);
-
-    if (cpu->p_stateEvent) {
-      XBT_DEBUG("Trace already configured for this CPU(%s), ignoring it",
-             elm);
-      continue;
-    }
-    XBT_DEBUG("Add state trace: %s to CPU(%s)", trace_name, elm);
-    cpu->p_stateEvent = future_evt_set->add_trace(trace, 0.0, cpu);
-  }
-
-  xbt_dict_foreach(trace_connect_list_power, cursor, trace_name, elm) {
-    tmgr_trace_t trace = (tmgr_trace_t) xbt_dict_get_or_null(traces_set_list, trace_name);
-    CpuTi *cpu = static_cast<CpuTi*>(sg_host_by_name(elm)->pimpl_cpu);
-
-    xbt_assert(cpu, "Host %s undefined", elm);
-    xbt_assert(trace, "Trace %s undefined", trace_name);
-
-    XBT_DEBUG("Add speed trace: %s to CPU(%s)", trace_name, elm);
-    if (cpu->p_availTrace)
-      delete cpu->p_availTrace;
-
-    cpu->p_availTrace = new CpuTiTgmr(trace, cpu->m_speedScale);
-
-    /* add a fake trace event if periodicity == 0 */
-    if (trace && xbt_dynar_length(trace->s_list.event_list) > 1) {
-      s_tmgr_event_t val;
-      xbt_dynar_get_cpy(trace->s_list.event_list,
-                        xbt_dynar_length(trace->s_list.event_list) - 1, &val);
-      if (val.delta == 0) {
-        cpu->p_speedEvent =
-            future_evt_set->add_trace(tmgr_empty_trace_new(), cpu->p_availTrace->m_lastTime, cpu);
-      }
-    }
-  }
-}
-
 /************
  * Resource *
  ************/
@@ -555,24 +487,24 @@ CpuTi::CpuTi(CpuTiModel *model, simgrid::s4u::Host *host, xbt_dynar_t speedPeak,
   xbt_assert(core==1,"Multi-core not handled by this model yet");
   m_core = core;
 
-  m_speedScale = speedScale;
+  p_speed.scale = speedScale;
   p_availTrace = new CpuTiTgmr(speedTrace, speedScale);
 
   p_actionSet = new ActionTiList();
 
-  xbt_dynar_get_cpy(speedPeak, 0, &m_speedPeak);
-  XBT_DEBUG("CPU create: peak=%f", m_speedPeak);
+  xbt_dynar_get_cpy(speedPeak, 0, &p_speed.peak);
+  XBT_DEBUG("CPU create: peak=%f", p_speed.peak);
 
   if (stateTrace)
     p_stateEvent = future_evt_set->add_trace(stateTrace, 0.0, this);
 
-  if (speedTrace && xbt_dynar_length(speedTrace->s_list.event_list) > 1) {
-	s_tmgr_event_t val;
+  if (speedTrace && xbt_dynar_length(speedTrace->event_list) > 1) {
+  s_tmgr_event_t val;
     // add a fake trace event if periodicity == 0
-    xbt_dynar_get_cpy(speedTrace->s_list.event_list,
-                      xbt_dynar_length(speedTrace->s_list.event_list) - 1, &val);
+    xbt_dynar_get_cpy(speedTrace->event_list,
+                      xbt_dynar_length(speedTrace->event_list) - 1, &val);
     if (val.delta == 0) {
-      p_speedEvent =
+      p_speed.event =
           future_evt_set->add_trace(tmgr_empty_trace_new(), p_availTrace->m_lastTime, this);
     }
   }
@@ -584,50 +516,63 @@ CpuTi::~CpuTi()
   delete p_availTrace;
   delete p_actionSet;
 }
-
-void CpuTi::updateState(tmgr_trace_iterator_t event_type,
-                        double value, double date)
+void CpuTi::set_speed_trace(tmgr_trace_t trace)
 {
-  CpuTiAction *action;
+  if (p_availTrace)
+    delete p_availTrace;
 
-  if (event_type == p_speedEvent) {
+  p_availTrace = new CpuTiTgmr(trace, p_speed.scale);
+
+  /* add a fake trace event if periodicity == 0 */
+  if (trace && xbt_dynar_length(trace->event_list) > 1) {
+    s_tmgr_event_t val;
+    xbt_dynar_get_cpy(trace->event_list, xbt_dynar_length(trace->event_list) - 1, &val);
+    if (val.delta == 0)
+      p_speed.event = future_evt_set->add_trace(tmgr_empty_trace_new(), 0.0, this);
+  }
+}
+
+void CpuTi::apply_event(tmgr_trace_iterator_t event, double value)
+{
+  if (event == p_speed.event) {
     tmgr_trace_t speedTrace;
     CpuTiTgmr *trace;
     s_tmgr_event_t val;
 
-    XBT_DEBUG("Finish trace date: %f value %f date %f", surf_get_clock(),
-           value, date);
+    XBT_DEBUG("Finish trace date: value %f", value);
     /* update remaining of actions and put in modified cpu swag */
-    updateRemainingAmount(date);
+    updateRemainingAmount(surf_get_clock());
 
     modified(true);
 
     speedTrace = p_availTrace->p_speedTrace;
-    xbt_dynar_get_cpy(speedTrace->s_list.event_list,
-                      xbt_dynar_length(speedTrace->s_list.event_list) - 1, &val);
+    xbt_dynar_get_cpy(speedTrace->event_list,
+                      xbt_dynar_length(speedTrace->event_list) - 1, &val);
     /* free old trace */
     delete p_availTrace;
-    m_speedScale = val.value;
+    p_speed.scale = val.value;
 
     trace = new CpuTiTgmr(TRACE_FIXED, val.value);
     XBT_DEBUG("value %f", val.value);
 
     p_availTrace = trace;
 
-    tmgr_trace_event_unref(&p_speedEvent);
+    tmgr_trace_event_unref(&p_speed.event);
 
-  } else if (event_type == p_stateEvent) {
+  } else if (event == p_stateEvent) {
     if (value > 0) {
       if(isOff())
         xbt_dynar_push_as(host_that_restart, char*, (char *)getName());
       turnOn();
     } else {
       turnOff();
+      double date = surf_get_clock();
 
       /* put all action running on cpu to failed */
       for(ActionTiList::iterator it(p_actionSet->begin()), itend(p_actionSet->end())
           ; it != itend ; ++it) {
-	      action = &*it;
+
+        CpuTiAction *action = &*it;
         if (action->getState() == SURF_ACTION_RUNNING
          || action->getState() == SURF_ACTION_READY
          || action->getState() == SURF_ACTION_NOT_IN_THE_SYSTEM) {
@@ -643,6 +588,7 @@ void CpuTi::updateState(tmgr_trace_iterator_t event_type,
       }
     }
     tmgr_trace_event_unref(&p_stateEvent);
+
   } else {
     xbt_die("Unknown event!\n");
   }
@@ -692,7 +638,7 @@ void CpuTi::updateActionsFinishTime(double now)
           (action->getRemains()) * sum_priority *
            action->getPriority();
 
-      total_area /= m_speedPeak;
+      total_area /= p_speed.peak;
 
       action->setFinishTime(p_availTrace->solve(now, total_area));
       /* verify which event will happen before (max_duration or finish time) */
@@ -734,7 +680,7 @@ bool CpuTi::isUsed()
 
 double CpuTi::getAvailableSpeed()
 {
-  m_speedScale = p_availTrace->getPowerScale(surf_get_clock());
+  p_speed.scale = p_availTrace->getPowerScale(surf_get_clock());
   return Cpu::getAvailableSpeed();
 }
 
@@ -749,7 +695,7 @@ void CpuTi::updateRemainingAmount(double now)
     return;
 
   /* compute the integration area */
-  area_total = p_availTrace->integrate(m_lastUpdate, now) * m_speedPeak;
+  area_total = p_availTrace->integrate(m_lastUpdate, now) * p_speed.peak;
   XBT_DEBUG("Flops total: %f, Last update %f", area_total,
          m_lastUpdate);
 
@@ -786,7 +732,7 @@ void CpuTi::updateRemainingAmount(double now)
   m_lastUpdate = now;
 }
 
-CpuAction *CpuTi::execute(double size)
+CpuAction *CpuTi::execution_start(double size)
 {
   XBT_IN("(%s,%g)", getName(), size);
   CpuTiAction *action = new CpuTiAction(static_cast<CpuTiModel*>(getModel()), size, isOff(), this);
@@ -811,7 +757,7 @@ CpuAction *CpuTi::sleep(double duration)
   if (duration == NO_MAX_DURATION) {
    /* Move to the *end* of the corresponding action set. This convention
       is used to speed up update_resource_state  */
-	action->getStateSet()->erase(action->getStateSet()->iterator_to(*action));
+  action->getStateSet()->erase(action->getStateSet()->iterator_to(*action));
     action->p_stateSet = static_cast<CpuTiModel*>(getModel())->p_runningActionSetThatDoesNotNeedBeingChecked;
     action->getStateSet()->push_back(*action);
   }
@@ -840,7 +786,7 @@ void CpuTi::modified(bool modified){
  **********/
 
 CpuTiAction::CpuTiAction(CpuTiModel *model_, double cost, bool failed,
-		                 CpuTi *cpu)
+                     CpuTi *cpu)
  : CpuAction(model_, cost, failed)
 {
   p_cpu = cpu;
@@ -863,8 +809,8 @@ int CpuTiAction::unref()
 {
   m_refcount--;
   if (!m_refcount) {
-	if (action_hook.is_linked())
-	  getStateSet()->erase(getStateSet()->iterator_to(*this));
+    if (action_hook.is_linked())
+      getStateSet()->erase(getStateSet()->iterator_to(*this));
     /* remove from action_set */
     if (action_ti_hook.is_linked())
       p_cpu->p_actionSet->erase(p_cpu->p_actionSet->iterator_to(*this));

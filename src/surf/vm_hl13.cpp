@@ -49,7 +49,7 @@ VirtualMachine *VMHL13Model::createVM(const char *name, sg_host_t host_PM)
 // const double virt_overhead = 0.95;
 const double virt_overhead = 1;
 
-double VMHL13Model::shareResources(double now)
+double VMHL13Model::next_occuring_event(double now)
 {
   /* TODO: update action's cost with the total cost of processes on the VM. */
 
@@ -101,25 +101,8 @@ double VMHL13Model::shareResources(double now)
   /* 2. Calculate resource share at the virtual machine layer. */
   adjustWeightOfDummyCpuActions();
 
-  double min_by_cpu = surf_cpu_model_vm->shareResources(now);
-  double min_by_net = surf_network_model->shareResourcesIsIdempotent() ? surf_network_model->shareResources(now) : -1;
-  // Fixme: take storage into account once it's implemented
-  double min_by_sto = -1;
-
-  XBT_DEBUG("model %p, %s min_by_cpu %f, %s min_by_net %f, %s min_by_sto %f",
-      this, typeid(surf_cpu_model_pm ).name(), min_by_cpu,
-	        typeid(surf_network_model).name(), min_by_net,
-            typeid(surf_storage_model).name(), min_by_sto);
-
-  double ret = std::max(std::max(min_by_cpu, min_by_net), min_by_sto);
-  if (min_by_cpu >= 0.0 && min_by_cpu < ret)
-	ret = min_by_cpu;
-  if (min_by_net >= 0.0 && min_by_net < ret)
-	ret = min_by_net;
-  if (min_by_sto >= 0.0 && min_by_sto < ret)
-	ret = min_by_sto;
-
-  return ret;
+  /* 3. Ready. Get the next occuring event */
+  return surf_cpu_model_vm->next_occuring_event(now);
 }
 
 /************
@@ -158,8 +141,7 @@ VMHL13::VMHL13(VMModel *model, const char* name, xbt_dict_t props, sg_host_t hos
 
   /* We create cpu_action corresponding to a VM process on the host operating system. */
   /* FIXME: TODO: we have to periodically input GUESTOS_NOISE to the system? how ? */
-  // vm_ws->cpu_action = surf_cpu_model_pm->extension.cpu.execute(host_PM, GUESTOS_NOISE);
-  p_action = sub_cpu->execute(0);
+  p_action = sub_cpu->execution_start(0);
 
   XBT_INFO("Create VM(%s)@PM(%s) with %ld mounted disks",
     name, p_hostPM->name().c_str(), xbt_dynar_length(p_storage));
@@ -213,7 +195,7 @@ void VMHL13::migrate(sg_host_t host_dest)
    /* Update vcpu's action for the new pm */
    {
      /* create a cpu action bound to the pm model at the destination. */
-     CpuAction *new_cpu_action = static_cast<CpuAction*>(host_dest->pimpl_cpu->execute(0));
+     CpuAction *new_cpu_action = static_cast<CpuAction*>(host_dest->pimpl_cpu->execution_start(0));
 
      e_surf_action_state_t state = p_action->getState();
      if (state != SURF_ACTION_DONE)

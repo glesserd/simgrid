@@ -52,14 +52,13 @@ static int __check_feasible(xbt_swag_t cnst_list, xbt_swag_t var_list,
   double tmp;
 
   xbt_swag_foreach(_cnst, cnst_list) {
-	cnst = (lmm_constraint_t)_cnst;
+  cnst = (lmm_constraint_t)_cnst;
     tmp = 0;
-    elem_list = &(cnst->element_set);
+    elem_list = &(cnst->enabled_element_set);
     xbt_swag_foreach(_elem, elem_list) {
       elem = (lmm_element_t)_elem;
       var = elem->variable;
-      if (var->weight <= 0)
-        continue;
+      xbt_assert(var->weight > 0);
       tmp += var->value;
     }
 
@@ -76,7 +75,7 @@ static int __check_feasible(xbt_swag_t cnst_list, xbt_swag_t var_list,
   }
 
   xbt_swag_foreach(_var, var_list) {
-	var = (lmm_variable_t)_var;
+  var = (lmm_variable_t)_var;
     if (!var->weight)
       break;
     if (var->bound < 0)
@@ -135,7 +134,7 @@ static double dual_objective(xbt_swag_t var_list, xbt_swag_t cnst_list)
   double obj = 0.0;
 
   xbt_swag_foreach(_var, var_list) {
-	var = (lmm_variable_t)_var;
+  var = (lmm_variable_t)_var;
     double sigma_i = 0.0;
     int j;
 
@@ -215,7 +214,7 @@ void lagrange_solve(lmm_system_t sys)
    */
   cnst_list = &(sys->active_constraint_set);
   xbt_swag_foreach(_cnst, cnst_list) {
-	cnst = (lmm_constraint_t)_cnst;
+  cnst = (lmm_constraint_t)_cnst;
     cnst->lambda = 1.0;
     cnst->new_lambda = 2.0;
     XBT_DEBUG("#### cnst(%p)->lambda :  %e", cnst, cnst->lambda);
@@ -228,7 +227,7 @@ void lagrange_solve(lmm_system_t sys)
   var_list = &(sys->variable_set);
   i = 0;
   xbt_swag_foreach(_var, var_list) {
-	var = (lmm_variable_t)_var;
+  var = (lmm_variable_t)_var;
     if (!var->weight)
       var->value = 0.0;
     else {
@@ -501,16 +500,14 @@ static double partial_diff_lambda(double lambda, void *param_cnst)
   double sigma_i = 0.0;
 
   XBT_IN();
-  elem_list = &(cnst->element_set);
+  elem_list = &(cnst->enabled_element_set);
 
   XBT_CDEBUG(surf_lagrange_dichotomy, "Computing diff of cnst (%p)", cnst);
 
   xbt_swag_foreach(_elem, elem_list) {
-	elem = (lmm_element_t)_elem;
+  elem = (lmm_element_t)_elem;
     var = elem->variable;
-    if (var->weight <= 0)
-      continue;
-
+    xbt_assert(var->weight > 0);
     XBT_CDEBUG(surf_lagrange_dichotomy, "Computing sigma_i for var (%p)",
             var);
     // Initialize the summation variable

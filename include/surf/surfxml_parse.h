@@ -11,15 +11,14 @@
 #include "xbt/misc.h"
 #include "xbt/function_types.h"
 #include "xbt/dict.h"
-#include "surf/simgrid_dtd.h"
 
+SG_BEGIN_DECL()
+#include "surf/simgrid_dtd.h"
 
 #ifndef YY_TYPEDEF_YY_SIZE_T
 #define YY_TYPEDEF_YY_SIZE_T
 typedef size_t yy_size_t;
 #endif
-
-SG_BEGIN_DECL()
 
 XBT_PUBLIC(void) surf_parse_open(const char *file);
 XBT_PUBLIC(void) surf_parse_close(void);
@@ -30,10 +29,10 @@ XBT_PUBLIC(void) XBT_ATTRIB_NORETURN surf_parse_error(const char *msg,...) XBT_A
 XBT_PUBLIC(void) surf_parse_warn(const char *msg,...) XBT_ATTRIB_PRINTF(1,2);
 XBT_PUBLIC(double) surf_parse_get_double(const char *string);
 XBT_PUBLIC(int) surf_parse_get_int(const char *string);
-XBT_PUBLIC(double) surf_parse_get_time(const char *string);
-XBT_PUBLIC(double) surf_parse_get_size(const char *string);
-XBT_PUBLIC(double) surf_parse_get_bandwidth(const char *string);
-XBT_PUBLIC(double) surf_parse_get_speed(const char *string);
+XBT_PUBLIC(double) surf_parse_get_time(const char *string, const char *entity_kind, const char *name);
+XBT_PUBLIC(double) surf_parse_get_size(const char *string, const char *entity_kind, const char *name);
+XBT_PUBLIC(double) surf_parse_get_bandwidth(const char *string, const char *entity_kind, const char *name);
+XBT_PUBLIC(double) surf_parse_get_speed(const char *string, const char *entity_kind, const char *name);
 
 /* Prototypes of the functions offered by flex */
 XBT_PUBLIC(int) surf_parse_lex(void);

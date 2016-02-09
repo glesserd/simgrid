@@ -645,7 +645,7 @@ WARN_LOGFILE           =
 INPUT                  = doxygen/index.doc \
                          doxygen/getting_started.doc \
                          doxygen/getting_started_index.doc \
-                         doxygen/introduction.doc \
+                         doxygen/tutorial.doc \
                          doxygen/install.doc \
                          doxygen/examples.doc \
                            doxygen/platform.doc \
@@ -655,11 +655,11 @@ INPUT                  = doxygen/index.doc \
  			 doxygen/advanced.doc \
                            doxygen/pls.doc \
                            doxygen/bindings.doc \
-			   doxygen/internals.doc \
+			   doxygen/inside.doc \
 			     doxygen/inside_doxygen.doc \
 			     doxygen/inside_extending.doc \
 			     doxygen/inside_cmake.doc \
-			     doxygen/inside_ci.doc \
+			     doxygen/inside_tests.doc \
 			     doxygen/inside_release.doc \
 			   doxygen/contributing.doc \
                          doxygen/tracing.doc \
@@ -1468,8 +1468,7 @@ PREDEFINED             = DOXYGEN \
                          XBT_IMPORT_NO_EXPORT(type)=type \
                          XBT_PUBLIC_DATA(type)="extern type" \
                          XBT_PUBLIC_CLASS=class \
-                         XBT_INLINE= \
-                         MSG_USE_DEPRECATED
+                         XBT_INLINE= 
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then
 # this tag can be used to specify a list of macro names that should be expanded.

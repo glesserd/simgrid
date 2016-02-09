@@ -614,10 +614,10 @@ void sg_config_init(int *argc, char **argv)
     xbt_cfg_setdefault_int(_sg_cfg_set, "model-check/checkpoint", 0);
 
     /* do stateful model-checking */
-    xbt_cfg_register(&_sg_cfg_set, "model-check/sparse-checkpoint",
+    xbt_cfg_register(&_sg_cfg_set, "model-check/sparse_checkpoint",
                      "Use sparse per-page snapshots.",
                      xbt_cfgelm_boolean, 1, 1, _mc_cfg_cb_sparse_checkpoint, NULL);
-    xbt_cfg_setdefault_boolean(_sg_cfg_set, "model-check/sparse-checkpoint", "no");
+    xbt_cfg_setdefault_boolean(_sg_cfg_set, "model-check/sparse_checkpoint", "no");
 
     /* do stateful model-checking */
     xbt_cfg_register(&_sg_cfg_set, "model-check/soft-dirty",
@@ -711,11 +711,11 @@ void sg_config_init(int *argc, char **argv)
         sprintf(description,
                 "Context factory to use in SIMIX. Possible values: %s",
                 dflt_ctx_fact);
-#ifdef CONTEXT_UCONTEXT
+#ifdef HAVE_UCONTEXT_CONTEXTS
       dflt_ctx_fact = "ucontext";
       p += sprintf(p, ", %s", dflt_ctx_fact);
 #endif
-#ifdef HAVE_RAWCTX
+#ifdef HAVE_RAW_CONTEXTS
       dflt_ctx_fact = "raw";
       p += sprintf(p, ", %s", dflt_ctx_fact);
 #endif
@@ -836,10 +836,10 @@ void sg_config_init(int *argc, char **argv)
                      xbt_cfgelm_int, 1, 1, NULL, NULL);
     xbt_cfg_setdefault_int(_sg_cfg_set, "smpi/async_small_thresh", 0);
 
-    xbt_cfg_register(&_sg_cfg_set, "smpi/send_is_detached_thres",
+    xbt_cfg_register(&_sg_cfg_set, "smpi/send_is_detached_thresh",
                      "Threshold of message size where MPI_Send stops behaving like MPI_Isend and becomes MPI_Ssend",
                      xbt_cfgelm_int, 1, 1, NULL, NULL);
-    xbt_cfg_setdefault_int(_sg_cfg_set, "smpi/send_is_detached_thres", 65536);
+    xbt_cfg_setdefault_int(_sg_cfg_set, "smpi/send_is_detached_thresh", 65536);
 
     xbt_cfg_register(&_sg_cfg_set, "smpi/privatize_global_variables",
                      "Boolean indicating whether we should privatize global variable at runtime.",

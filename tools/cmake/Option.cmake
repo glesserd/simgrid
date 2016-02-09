@@ -49,7 +49,6 @@ option(enable_lib_in_jar "Whether the native libraries are bundled in a Java jar
 option(enable_lto "Whether we should try to activate the LTO (link time optimisation)" on)
 option(enable_jedule "Jedule output of SimDAG." off)
 option(enable_debug "Turn this off to remove all debug messages at compile time (faster, but no debug activatable)" on)
-option(enable_msg_deprecated "This option enables the use of deprecated MSG functions" off)
 
 if(WIN32)
   option(enable_smpi "Whether SMPI in included in library." off)
@@ -61,7 +60,7 @@ endif()
 option(enable_smpi_ISP_testsuite "Whether the test suite from ISP should be built." off)
 
 if(enable_scala AND NOT enable_java)
-  message(WARNING "For using scala you must turn java on with this command:\ncmake -Denable_java=on .")
+  message(WARNING "To use scala, you must enable java too (pass -Denable_java=on to Cmake for that)")
 endif()
 
 mark_as_advanced(HAVE_SSH)

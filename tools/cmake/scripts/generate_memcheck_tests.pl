@@ -108,6 +108,7 @@ while ( defined( $line = <MAKETEST> ) ) {
             }
 
             my ($count)        = 0;
+            my ($close)        = 0;
             open TESH_FILE, $tesh_file or die "Unable to open tesh file: \"$tesh_file\". $!\n";
             my ($input) = "";
             my ($l);
@@ -139,7 +140,7 @@ while ( defined( $line = <MAKETEST> ) ) {
                     }
                     if ( $command =~ /^mkfile\s+(\S+)/) {
                         my $file = $1;
-                        # don't ask me to explain why so many backslashes...
+                        # don't ask me why so many backslashes. http://xkcd.com/1638/
                         $input =~ s/\\/\\\\\\\\/g;
                         $input =~ s/\n/\\\\n/g;
                         $input =~ s/"/\\\\042/g;
@@ -149,12 +150,29 @@ while ( defined( $line = <MAKETEST> ) ) {
                     }
                     if ($factories) {
                       foreach my $factory (split(';', $factories)) {
+                        $close=0;
+                        if( $factory =~ /^raw/) {
+                            print "${indent}if(HAVE_RAW_CONTEXTS)\n";
+                            $close=1;
+                        }elsif( $factory =~ /^boost/) {
+                            print "${indent}if(HAVE_BOOST_CONTEXTS)\n";
+                            $close=1;
+                        }elsif( $factory =~ /^ucontext/) {
+                            print "${indent}if(HAVE_UCONTEXT_CONTEXTS)\n";
+                            $close=1;
+                        }elsif( $factory =~ /^thread/) {
+                            print "${indent}if(HAVE_THREAD_CONTEXTS)\n";
+                            $close=1;
+                        }
                         print "${indent}ADD_TEST(NAME memcheck-$name_test-$factory-$count\n";
                         print "${indent}         WORKING_DIRECTORY $path\/\n";
                         print "${indent}         COMMAND $command --cfg=contexts/factory:$factory)\n";
                         if ($count > 0) {
                             print "${indent}set_tests_properties(memcheck-$name_test-$factory-$count\n";
                             print "${indent}                     PROPERTIES DEPENDS memcheck-$name_test-$factory-" . ($count - 1) . ")\n";
+                        }
+                       if ($close > 0){
+                        print "${indent}endif()\n";
                         }
                       }
                     } else {

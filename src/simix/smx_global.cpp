@@ -214,7 +214,6 @@ void SIMIX_global_init(int *argc, char **argv)
     simix_global->synchro_mallocator = xbt_mallocator_new(65536,
         SIMIX_synchro_mallocator_new_f, SIMIX_synchro_mallocator_free_f,
         SIMIX_synchro_mallocator_reset_f);
-    simix_global->autorestart = SIMIX_host_restart_processes;
     simix_global->mutex = xbt_os_mutex_init();
 
     surf_init(argc, argv);      /* Initialize SURF structures */
@@ -278,10 +277,10 @@ void SIMIX_clean(void)
   smx_cleaned = 1;
   XBT_DEBUG("SIMIX_clean called. Simulation's over.");
   if (!xbt_dynar_is_empty(simix_global->process_to_run) && SIMIX_get_clock() == 0.0) {
-	  XBT_CRITICAL("   ");
-	  XBT_CRITICAL("The time is still 0, and you still have processes ready to run.");
-	  XBT_CRITICAL("It seems that you forgot to run the simulation that you setup.");
-	  xbt_die("Bailing out to avoid that stop-before-start madness. Please fix your code.");
+    XBT_CRITICAL("   ");
+    XBT_CRITICAL("The time is still 0, and you still have processes ready to run.");
+    XBT_CRITICAL("It seems that you forgot to run the simulation that you setup.");
+    xbt_die("Bailing out to avoid that stop-before-start madness. Please fix your code.");
   }
   /* Kill all processes (but maestro) */
   SIMIX_process_killall(simix_global->maestro_process, 1);
@@ -522,14 +521,12 @@ void SIMIX_run(void)
     }
 
     /* Autorestart all process */
-    if(host_that_restart) {
-      char *hostname = NULL;
-      xbt_dynar_foreach(host_that_restart,iter,hostname) {
-        XBT_INFO("Restart processes on host: %s",hostname);
-        SIMIX_host_autorestart(sg_host_by_name(hostname));
-      }
-      xbt_dynar_reset(host_that_restart);
+    char *hostname = NULL;
+    xbt_dynar_foreach(host_that_restart,iter,hostname) {
+      XBT_INFO("Restart processes on host: %s",hostname);
+      SIMIX_host_autorestart(sg_host_by_name(hostname));
     }
+    xbt_dynar_reset(host_that_restart);
 
     /* Clean processes to destroy */
     SIMIX_process_empty_trash();
@@ -541,7 +538,7 @@ void SIMIX_run(void)
 
   if (xbt_swag_size(simix_global->process_list) != 0) {
 
-	TRACE_end();
+  TRACE_end();
 
     XBT_CRITICAL("Oops ! Deadlock or code not perfectly clean.");
     SIMIX_display_process_status();
@@ -570,12 +567,12 @@ smx_timer_t SIMIX_timer_set(double date, void (*function)(void*), void *arg)
 }
 /** @brief cancels a timer that was added earlier */
 void SIMIX_timer_remove(smx_timer_t timer) {
-	xbt_heap_rm_elm(simix_timers, timer, timer->date);
+  xbt_heap_rm_elm(simix_timers, timer, timer->date);
 }
 
 /** @brief Returns the date at which the timer will trigger (or 0 if NULL timer) */
 double SIMIX_timer_get_date(smx_timer_t timer) {
-	return timer?timer->date:0;
+  return timer?timer->date:0;
 }
 
 /**

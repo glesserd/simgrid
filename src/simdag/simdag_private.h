@@ -7,8 +7,6 @@
 #ifndef SIMDAG_PRIVATE_H
 #define SIMDAG_PRIVATE_H
 
-#include "xbt/base.h"
-#include "xbt/dict.h"
 #include "xbt/dynar.h"
 #include "simgrid/simdag.h"
 #include "surf/surf.h"
@@ -20,10 +18,6 @@ SG_BEGIN_DECL()
 /* Global variables */
 
 typedef struct SD_global {
-  sg_host_t *host_list;   /* array of workstations, created only if
-                             necessary in sg_host_list() */
-  SD_link_t *link_list;         /* array of links */
-
   xbt_mallocator_t task_mallocator; /* to not remalloc new tasks */
 
   int watch_point_reached;      /* has a task just reached a watch point? */
@@ -33,22 +27,10 @@ typedef struct SD_global {
   xbt_dynar_t completed_task_set;
 
   xbt_dynar_t return_set;
-  int task_number;
 
 } s_SD_global_t, *SD_global_t;
 
 extern XBT_PRIVATE SD_global_t sd_global;
-
-/* Storage */
-typedef s_xbt_dictelm_t s_SD_storage_t;
-typedef struct SD_storage {
-  void *data;                   /* user data */
-  const char *host;
-} s_SD_storage_priv_t, *SD_storage_priv_t;
-
-static inline SD_storage_priv_t SD_storage_priv(SD_storage_t storage){
-  return (SD_storage_priv_t)xbt_lib_get_level(storage, SD_STORAGE_LEVEL);
-}
 
 /* Task */
 typedef struct SD_task {
@@ -103,18 +85,5 @@ XBT_PRIVATE void* SD_task_new_f(void);
 XBT_PRIVATE void SD_task_recycle_f(void *t);
 XBT_PRIVATE void SD_task_free_f(void *t);
 
-/* Functions to test if the task is in a given state. */
-
-/* Returns whether the given task is scheduled or runnable. */
-static XBT_INLINE int __SD_task_is_scheduled_or_runnable(SD_task_t task)
-{
-  return task->state == SD_SCHEDULED || task->state == SD_RUNNABLE;
-}
-
-/********** Storage **********/
-XBT_PRIVATE SD_storage_t __SD_storage_create(void *surf_storage, void *data);
-XBT_PRIVATE void __SD_storage_destroy(void *storage);
-
 SG_END_DECL()
-
 #endif

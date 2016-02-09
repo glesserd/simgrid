@@ -19,13 +19,13 @@ static int peer(int argc, char* argv[]){
   int i = 0; 
   
   while(i < argc) {
-    double wait_time = atof(argv[i++]);
+    double wait_time = xbt_str_parse_double(argv[i++],"Invalid wait time: %s");
     MSG_process_sleep(wait_time);
     XBT_INFO("Trying to acquire %d", i);
     MSG_sem_acquire(sem);
     XBT_INFO("Acquired %d", i);
 
-    wait_time = atof(argv[i++]);
+    wait_time = xbt_str_parse_double(argv[i++], "Invalid wait time: %s");
     MSG_process_sleep(wait_time);
     XBT_INFO("Releasing %d", i);
     MSG_sem_release(sem);
@@ -72,9 +72,9 @@ int main(int argc, char* argv[]) {
  
 
   MSG_process_create_with_arguments(xbt_strdup("Alice"), peer, NULL, 
-				    h, 8, aliceTimes);
+            h, 8, aliceTimes);
   MSG_process_create_with_arguments(xbt_strdup("Bob"), peer, NULL, 
-				    h, 8, bobTimes);
+            h, 8, bobTimes);
 
   msg_error_t res = MSG_main();
   printf("Finished\n");

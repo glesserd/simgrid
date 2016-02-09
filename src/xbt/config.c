@@ -212,8 +212,7 @@ void xbt_cfgelm_free(void *data)
  *  @param cb_rm callback function called when a value is removed
  */
 
-void
-xbt_cfg_register(xbt_cfg_t * cfg,
+void xbt_cfg_register(xbt_cfg_t * cfg,
                  const char *name, const char *desc,
                  e_xbt_cfgelm_type_t type, int min,
                  int max, xbt_cfg_cb_t cb_set, xbt_cfg_cb_t cb_rm)
@@ -341,11 +340,6 @@ void xbt_cfg_register_str(xbt_cfg_t * cfg, const char *entry)
   free(entrycpy);               /* strdup'ed by dict mechanism, but cannot be const */
 }
 
-static int strcmp_voidp(const void *pa, const void *pb)
-{
-  return strcmp(*(const char **)pa, *(const char **)pb);
-}
-
 /** @brief Displays the declared options and their description */
 void xbt_cfg_help(xbt_cfg_t cfg)
 {
@@ -358,7 +352,7 @@ void xbt_cfg_help(xbt_cfg_t cfg)
   xbt_dict_foreach((xbt_dict_t )cfg, dict_cursor, name, variable) {
     xbt_dynar_push(names, &name);
   }
-  xbt_dynar_sort(names, strcmp_voidp);
+  xbt_dynar_sort_strings(names);
 
   xbt_dynar_foreach(names, dynar_cursor, name) {
     int i;
@@ -465,7 +459,8 @@ static xbt_cfgelm_t xbt_cfgelm_get(xbt_cfg_t cfg,
   if (!res) {
     xbt_cfg_help(cfg);
     THROWF(not_found_error, 0,
-           "No registered variable '%s' in this config set", name);
+           "No registered variable '%s' in this config set. It is possible that this "\
+           "configuration option has been renamed; please read the file ChangeLog carefully!", name);
   }
 
   xbt_assert(type == xbt_cfgelm_any || res->type == type,
@@ -932,14 +927,14 @@ void xbt_cfg_set_boolean(xbt_cfg_t cfg, const char *name, const char *val)
   variable = xbt_cfgelm_get(cfg, name, xbt_cfgelm_boolean);
 
   for (i = 0; xbt_cfgelm_boolean_values[i].true_val != NULL; i++) {
-	if (strcmp(val, xbt_cfgelm_boolean_values[i].true_val) == 0){
-	  bval = 1;
-	  break;
-	}
-	if (strcmp(val, xbt_cfgelm_boolean_values[i].false_val) == 0){
-	  bval = 0;
-	  break;
-	}
+  if (strcmp(val, xbt_cfgelm_boolean_values[i].true_val) == 0){
+    bval = 1;
+    break;
+  }
+  if (strcmp(val, xbt_cfgelm_boolean_values[i].false_val) == 0){
+    bval = 0;
+    break;
+  }
   }
   if (xbt_cfgelm_boolean_values[i].true_val == NULL) {
     xbt_die("Value of option '%s' not valid. Should be a boolean (yes,no,on,off,true,false,0,1)", val);

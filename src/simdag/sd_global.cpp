@@ -4,40 +4,29 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
-#include "src/surf/surf_interface.hpp"
-#include "src/simdag/simdag_private.h"
 #include "instr/instr_interface.h"
-#include "xbt/sysdep.h"
-#include "xbt/dynar.h"
-#include "surf/surf.h"
 #include "simgrid/sg_config.h"
 #include "simgrid/host.h"
-#include "xbt/ex.h"
+#include "src/simdag/simdag_private.h"
+#include "src/surf/surf_interface.hpp"
+
+#include "xbt/dynar.h"
 #include "xbt/log.h"
-#include "xbt/str.h"
-#include "xbt/config.h"
-#include "surf/surfxml_parse.h"
-#ifdef HAVE_LUA
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-#endif
+#include "xbt/sysdep.h"
 
 #ifdef HAVE_JEDULE
 #include "simgrid/jedule/jedule_sd_binding.h"
 #endif
 
 XBT_LOG_NEW_CATEGORY(sd, "Logging specific to SimDag");
-XBT_LOG_NEW_DEFAULT_SUBCATEGORY(sd_kernel, sd,
-                                "Logging specific to SimDag (kernel)");
+XBT_LOG_NEW_DEFAULT_SUBCATEGORY(sd_kernel, sd, "Logging specific to SimDag (kernel)");
 
 SD_global_t sd_global = NULL;
 
 /**
  * \brief Initializes SD internal data
  *
- * This function must be called before any other SD function. Then you
- * should call SD_create_environment().
+ * This function must be called before any other SD function. Then you should call SD_create_environment().
  *
  * \param argc argument number
  * \param argv argument list
@@ -52,16 +41,12 @@ void SD_init(int *argc, char **argv)
   sd_global = xbt_new(s_SD_global_t, 1);
   sd_global->watch_point_reached = 0;
 
-  sd_global->task_mallocator=xbt_mallocator_new(65536, SD_task_new_f,
-                                                SD_task_free_f,
-                                                SD_task_recycle_f);
+  sd_global->task_mallocator=xbt_mallocator_new(65536, SD_task_new_f, SD_task_free_f, SD_task_recycle_f);
 
   sd_global->initial_task_set = xbt_dynar_new(sizeof(SD_task_t), NULL);
   sd_global->executable_task_set = xbt_dynar_new(sizeof(SD_task_t), NULL);
   sd_global->completed_task_set = xbt_dynar_new(sizeof(SD_task_t), NULL);
   sd_global->return_set = xbt_dynar_new(sizeof(SD_task_t), NULL);
-
-  sd_global->task_number = 0;
 
   surf_init(argc, argv);
 
@@ -72,9 +57,6 @@ void SD_init(int *argc, char **argv)
   jedule_sd_init();
 #endif
 
-  XBT_DEBUG("ADD SD LEVELS");
-  SD_STORAGE_LEVEL = xbt_lib_add_level(storage_lib,__SD_storage_destroy);
-
   if (_sg_cfg_exit_asap) {
     SD_exit();
     exit(0);
@@ -83,8 +65,8 @@ void SD_init(int *argc, char **argv)
 
 /** \brief set a configuration variable
  *
- * Do --help on any simgrid binary to see the list of currently existing
- * configuration variables, and see Section @ref options.
+ * Do --help on any simgrid binary to see the list of currently existing configuration variables, and
+ * see Section @ref options.
  *
  * Example:
  * SD_config("host/model","default");
@@ -109,44 +91,14 @@ void SD_config(const char *key, const char *value){
  */
 void SD_application_reinit(void)
 {
-
-//  s_SD_task_t task;
-
-//  SD_task_t done_task, next_done_task;
   xbt_die("This function is not working since the C++ links and others. Please report the problem if you really need that function.");
-
-   XBT_DEBUG("Recreating the swags...");
-
-//  xbt_swag_foreach_safe(done_task, next_done_task, sd_global->done_task_set){
-//    if (xbt_dynar_is_empty(done_task->tasks_before)){
-//      __SD_task_set_state(done_task, SD_SCHEDULABLE);
-//    } else{
-//      __SD_task_set_state(done_task, SD_NOT_SCHEDULED);
-//      done_task->unsatisfied_dependencies =
-//        xbt_dynar_length(done_task->tasks_before);
-//      done_task->is_not_ready = done_task->unsatisfied_dependencies;
-//    }
-//    free(done_task->workstation_list);
-//    done_task->workstation_list = NULL;
-//    done_task->workstation_nb = 0;
-//  }
-
-  sd_global->task_number = 0;
-
-
-#ifdef HAVE_JEDULE
-  jedule_sd_dump();
-  jedule_sd_cleanup();
-  jedule_sd_init();
-#endif
 }
 
 /**
  * \brief Creates the environment
  *
- * The environment (i.e. the \ref sg_host_management "hosts"
- * and the \ref SD_link_management "links") is created with the data stored
- * in the given XML platform file.
+ * The environment (i.e. the \ref sg_host_management "hosts" and the \ref SD_link_management "links") is created with
+ * the data stored in the given XML platform file.
  *
  * \param platform_file name of an XML file describing the environment to create
  * \see sg_host_management, SD_link_management
@@ -161,38 +113,27 @@ void SD_application_reinit(void)
  */
 void SD_create_environment(const char *platform_file)
 {
-  xbt_lib_cursor_t cursor = NULL;
-  char *name = NULL;
-  void **surf_storage = NULL;
-
   parse_platform_file(platform_file);
 
-  /* now let's create the SD wrappers for storage elements */
-  xbt_lib_foreach(storage_lib, cursor, name, surf_storage) {
-    if(surf_storage[SURF_STORAGE_LEVEL])
-      __SD_storage_create(surf_storage[SURF_STORAGE_LEVEL], NULL);
-  }
-
-  XBT_DEBUG("Workstation number: %zu, link number: %d",
-         sg_host_count(), sg_link_count());
+  XBT_DEBUG("Workstation number: %zu, link number: %d", sg_host_count(), sg_link_count());
 #ifdef HAVE_JEDULE
   jedule_setup_platform();
 #endif
+  XBT_VERB("Starting simulation...");
+  surf_presolve();            /* Takes traces into account */
 }
 
 /**
  * \brief Launches the simulation.
  *
  * The function will execute the \ref SD_RUNNABLE runnable tasks.
- * If \a how_long is positive, then the simulation will be stopped either
- * when time reaches \a how_long or when a watch point is reached.
- * A non-positive value for \a how_long means no time limit, in which case
- * the simulation will be stopped either when a watch point is reached or
- * when no more task can be executed.
+ * If \a how_long is positive, then the simulation will be stopped either when time reaches \a how_long or when a watch
+ * point is reached.
+ * A non-positive value for \a how_long means no time limit, in which case the simulation will be stopped either when a
+ * watch point is reached or when no more task can be executed.
  * Then you can call SD_simulate() again.
  *
- * \param how_long maximum duration of the simulation (a negative value means
- * no time limit)
+ * \param how_long maximum duration of the simulation (a negative value means no time limit)
  * \return a dynar of \ref SD_task_t whose state has changed.
  * \see SD_task_schedule(), SD_task_watch()
  */
@@ -205,14 +146,6 @@ xbt_dynar_t SD_simulate(double how_long) {
   SD_dependency_t dependency;
   surf_action_t action;
   unsigned int iter, depcnt;
-  static int first_time = 1;
-
-  if (first_time) {
-    XBT_VERB("Starting simulation...");
-
-    surf_presolve();            /* Takes traces into account */
-    first_time = 0;
-  }
 
   XBT_VERB("Run simulation for %f seconds", how_long);
   sd_global->watch_point_reached = 0;
@@ -229,12 +162,9 @@ xbt_dynar_t SD_simulate(double how_long) {
 
   /* main loop */
   elapsed_time = 0.0;
-  while (elapsed_time >= 0.0 &&
-         (how_long < 0.0 || 0.00001 < (how_long -total_time)) &&
+  while (elapsed_time >= 0.0 && (how_long < 0.0 || 0.00001 < (how_long -total_time)) &&
          !sd_global->watch_point_reached) {
     surf_model_t model = NULL;
-    /* dumb variables */
-
 
     XBT_DEBUG("Total time: %f", total_time);
 
@@ -256,21 +186,19 @@ xbt_dynar_t SD_simulate(double how_long) {
         task->surf_action = NULL;
 
         /* the state has changed. Add it only if it's the first change */
-        if (xbt_dynar_search_or_negative(sd_global->return_set, &task) < 0) {
+        if (!xbt_dynar_member(sd_global->return_set, &task)) {
           xbt_dynar_push(sd_global->return_set, &task);
         }
 
         /* remove the dependencies after this task */
         xbt_dynar_foreach(task->tasks_after, depcnt, dependency) {
           dst = dependency->dst;
-          if (dst->unsatisfied_dependencies > 0)
-            dst->unsatisfied_dependencies--;
+          dst->unsatisfied_dependencies--;
           if (dst->is_not_ready > 0)
             dst->is_not_ready--;
 
           XBT_DEBUG("Released a dependency on %s: %d remain(s). Became schedulable if %d=0",
-             SD_task_get_name(dst), dst->unsatisfied_dependencies,
-             dst->is_not_ready);
+             SD_task_get_name(dst), dst->unsatisfied_dependencies, dst->is_not_ready);
 
           if (!(dst->unsatisfied_dependencies)) {
             if (SD_task_get_state(dst) == SD_SCHEDULED)
@@ -279,8 +207,7 @@ xbt_dynar_t SD_simulate(double how_long) {
               SD_task_set_state(dst, SD_SCHEDULABLE);
           }
 
-          if (SD_task_get_state(dst) == SD_NOT_SCHEDULED &&
-              !(dst->is_not_ready)) {
+          if (SD_task_get_state(dst) == SD_NOT_SCHEDULED && !(dst->is_not_ready)) {
             SD_task_set_state(dst, SD_SCHEDULABLE);
           }
 
@@ -289,13 +216,11 @@ xbt_dynar_t SD_simulate(double how_long) {
             SD_task_t comm_dst;
             xbt_dynar_get_cpy(dst->tasks_after, 0, &comm_dep);
             comm_dst = comm_dep->dst;
-            if (SD_task_get_state(comm_dst) == SD_NOT_SCHEDULED &&
-                comm_dst->is_not_ready > 0) {
+            if (SD_task_get_state(comm_dst) == SD_NOT_SCHEDULED && comm_dst->is_not_ready > 0) {
               comm_dst->is_not_ready--;
 
             XBT_DEBUG("%s is a transfer, %s may be ready now if %d=0",
-               SD_task_get_name(dst), SD_task_get_name(comm_dst),
-               comm_dst->is_not_ready);
+               SD_task_get_name(dst), SD_task_get_name(comm_dst), comm_dst->is_not_ready);
 
               if (!(comm_dst->is_not_ready)) {
                 SD_task_set_state(comm_dst, SD_SCHEDULABLE);
@@ -304,8 +229,7 @@ xbt_dynar_t SD_simulate(double how_long) {
           }
 
           /* is dst runnable now? */
-          if (SD_task_get_state(dst) == SD_RUNNABLE
-              && !sd_global->watch_point_reached) {
+          if (SD_task_get_state(dst) == SD_RUNNABLE && !sd_global->watch_point_reached) {
             XBT_VERB("Executing task '%s'", SD_task_get_name(dst));
             SD_task_run(dst);
             xbt_dynar_push(sd_global->return_set, &dst);
@@ -329,18 +253,13 @@ xbt_dynar_t SD_simulate(double how_long) {
   }
 
   if (!sd_global->watch_point_reached && how_long<0){
-    if ((int) xbt_dynar_length(sd_global->completed_task_set) <
-         sd_global->task_number){
-        XBT_WARN("Simulation is finished but %d tasks are still not done",
-            (sd_global->task_number -
-             (int) xbt_dynar_length(sd_global->completed_task_set)));
+    if (!xbt_dynar_is_empty(sd_global->initial_task_set)) {
+        XBT_WARN("Simulation is finished but %lu tasks are still not done",
+            xbt_dynar_length(sd_global->initial_task_set));
         static const char* state_names[] =
-              { "SD_NOT_SCHEDULED", "SD_SCHEDULABLE", "SD_SCHEDULED",
-                "SD_RUNNABLE", "SD_RUNNING", "SD_DONE",
-                "SD_FAILED" };
+          { "SD_NOT_SCHEDULED", "SD_SCHEDULABLE", "SD_SCHEDULED", "SD_RUNNABLE", "SD_RUNNING", "SD_DONE","SD_FAILED" };
         xbt_dynar_foreach(sd_global->initial_task_set, iter, task){
-          XBT_WARN("%s is in %s state", SD_task_get_name(task),
-                   state_names[SD_task_get_state(task)]);
+          XBT_WARN("%s is in %s state", SD_task_get_name(task), state_names[SD_task_get_state(task)]);
         }
     }
   }
@@ -352,11 +271,7 @@ xbt_dynar_t SD_simulate(double how_long) {
   return sd_global->return_set;
 }
 
-/**
- * \brief Returns the current clock
- *
- * \return the current clock, in second
- */
+/** @brief Returns the current clock, in seconds */
 double SD_get_clock(void) {
   return surf_get_clock();
 }
@@ -364,34 +279,27 @@ double SD_get_clock(void) {
 /**
  * \brief Destroys all SD internal data
  *
- * This function should be called when the simulation is over. Don't forget
- * to destroy too.
+ * This function should be called when the simulation is over. Don't forget to destroy too.
  *
  * \see SD_init(), SD_task_destroy()
  */
 void SD_exit(void)
 {
   TRACE_surf_resource_utilization_release();
-
-  xbt_mallocator_free(sd_global->task_mallocator);
-
-  XBT_DEBUG("Destroying the dynars ...");
-  xbt_dynar_free_container(&(sd_global->initial_task_set));
-  xbt_dynar_free_container(&(sd_global->executable_task_set));
-  xbt_dynar_free_container(&(sd_global->completed_task_set));
-  xbt_dynar_free_container(&(sd_global->return_set));
-
   TRACE_end();
 
-  xbt_free(sd_global);
-  sd_global = NULL;
-
 #ifdef HAVE_JEDULE
-  jedule_sd_dump();
   jedule_sd_cleanup();
   jedule_sd_exit();
 #endif
 
-  XBT_DEBUG("Exiting Surf...");
+  xbt_mallocator_free(sd_global->task_mallocator);
+  xbt_dynar_free_container(&(sd_global->initial_task_set));
+  xbt_dynar_free_container(&(sd_global->executable_task_set));
+  xbt_dynar_free_container(&(sd_global->completed_task_set));
+  xbt_dynar_free_container(&(sd_global->return_set));
+  xbt_free(sd_global);
+  sd_global = NULL;
+
   surf_exit();
 }

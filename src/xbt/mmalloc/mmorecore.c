@@ -10,13 +10,15 @@
 
    Contributed by Fred Fish at Cygnus Support.   fnf@cygnus.com */
 
-#ifdef HAVE_UNISTD_H
+#include "src/internal_config.h"
+#if HAVE_UNISTD_H
 #include <unistd.h>             /* Prototypes for lseek */
 #endif
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #include "mmprivate.h"
 

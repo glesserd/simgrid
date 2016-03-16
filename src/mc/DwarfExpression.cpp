@@ -4,13 +4,12 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
+#include <cstddef>
 #include <cstdint>
-#include <cstdarg>
 
 #include <dwarf.h>
 #include <elfutils/libdw.h>
 
-#include "src/mc/mc_object_info.h"
 #include "src/mc/mc_private.h"
 #include "src/mc/LocationList.hpp"
 #include "src/mc/AddressSpace.hpp"
@@ -70,11 +69,12 @@ void execute(
     case DW_OP_breg29:
     case DW_OP_breg30:
     case DW_OP_breg31:{
+        // Push register + constant:
         int register_id = simgrid::dwarf::dwarf_register_to_libunwind(
           op->atom - DW_OP_breg0);
         unw_word_t res;
         if (!context.cursor)
-          throw evaluation_error("Missin stack context");
+          throw evaluation_error("Missing stack context");
         unw_get_reg(context.cursor, register_id, &res);
         stack.push(res + op->number);
         break;
@@ -117,7 +117,6 @@ void execute(
       // ***** Constants:
 
       // Short constant literals:
-      // DW_OP_lit15 pushed the 15 on the stack.
     case DW_OP_lit0:
     case DW_OP_lit1:
     case DW_OP_lit2:
@@ -150,6 +149,7 @@ void execute(
     case DW_OP_lit29:
     case DW_OP_lit30:
     case DW_OP_lit31:
+      // Push a literal/constant on the stack:
       stack.push(atom - DW_OP_lit0);
       break;
 
@@ -191,9 +191,8 @@ void execute(
       stack.pop();
       break;
 
-      // Swap the two top-most value of the stack:
     case DW_OP_swap:
-      std::swap(stack.top(), stack.top(1));
+      stack.swap();
       break;
 
       // Duplicate the value under the top of the stack:

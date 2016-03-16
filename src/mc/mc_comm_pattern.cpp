@@ -15,10 +15,10 @@
 
 using simgrid::mc::remote;
 
-extern "C" {
-
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(mc_comm_pattern, mc,
                                 "Logging specific to MC communication patterns");
+
+extern "C" {
 
 mc_comm_pattern_t MC_comm_pattern_dup(mc_comm_pattern_t comm)
 {
@@ -28,11 +28,11 @@ mc_comm_pattern_t MC_comm_pattern_dup(mc_comm_pattern_t comm)
   res->comm_addr = comm->comm_addr;
   res->rdv = xbt_strdup(comm->rdv);
   res->data_size = -1;
-  res->data = NULL;
+  res->data = nullptr;
   if (comm->type == SIMIX_COMM_SEND) {
     res->src_proc = comm->src_proc;
     res->src_host = comm->src_host;
-    if (comm->data != NULL) {
+    if (comm->data != nullptr) {
       res->data_size = comm->data_size;
       res->data = xbt_malloc0(comm->data_size);
       memcpy(res->data, comm->data, comm->data_size);
@@ -75,16 +75,14 @@ void MC_restore_communications_pattern(mc_state_t state)
   mc_list_comm_pattern_t list_process_comm;
   unsigned int cursor;
 
-  xbt_dynar_foreach(initial_communications_pattern, cursor, list_process_comm){
+  xbt_dynar_foreach(initial_communications_pattern, cursor, list_process_comm)
     list_process_comm->index_comm = (int)xbt_dynar_get_as(state->index_comm, cursor, int);
-  }
 
-  for (unsigned i = 0; i < MC_smx_get_maxpid(); i++) {
+  for (unsigned i = 0; i < MC_smx_get_maxpid(); i++)
     MC_patterns_copy(
       xbt_dynar_get_as(incomplete_communications_pattern, i, xbt_dynar_t),
       xbt_dynar_get_as(state->incomplete_comm_pattern, i, xbt_dynar_t)
     );
-  }
 }
 
 void MC_state_copy_incomplete_communications_pattern(mc_state_t state)
@@ -100,12 +98,11 @@ void MC_state_copy_incomplete_communications_pattern(mc_state_t state)
 
 void MC_state_copy_index_communications_pattern(mc_state_t state)
 {
-  state->index_comm = xbt_dynar_new(sizeof(unsigned int), NULL);
+  state->index_comm = xbt_dynar_new(sizeof(unsigned int), nullptr);
   mc_list_comm_pattern_t list_process_comm;
   unsigned int cursor;
-  xbt_dynar_foreach(initial_communications_pattern, cursor, list_process_comm){
+  xbt_dynar_foreach(initial_communications_pattern, cursor, list_process_comm)
     xbt_dynar_push_as(state->index_comm, unsigned int, list_process_comm->index_comm);
-  }
 }
 
 void MC_handle_comm_pattern(
@@ -123,7 +120,7 @@ void MC_handle_comm_pattern(
   case MC_CALL_TYPE_WAIT:
   case MC_CALL_TYPE_WAITANY:
     {
-      smx_synchro_t comm_addr = NULL;
+      smx_synchro_t comm_addr = nullptr;
       if (call_type == MC_CALL_TYPE_WAIT)
         comm_addr = simcall_comm_wait__get__comm(req);
       else
@@ -145,14 +142,14 @@ void MC_comm_pattern_free(mc_comm_pattern_t p)
   xbt_free(p->rdv);
   xbt_free(p->data);
   xbt_free(p);
-  p = NULL;
+  p = nullptr;
 }
 
 static void MC_list_comm_pattern_free(mc_list_comm_pattern_t l)
 {
   xbt_dynar_free(&(l->list));
   xbt_free(l);
-  l = NULL;
+  l = nullptr;
 }
 
 void MC_comm_pattern_free_voidp(void *p)

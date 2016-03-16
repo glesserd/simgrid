@@ -8,30 +8,37 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <xbt.h>
-#include <simgrid/simix.h>
+#include <xbt/fifo.h>
+#include <xbt/log.h>
+#include <xbt/sysdep.h>
+
+#include "simgrid/simix.h"
+
+#include "src/simix/smx_private.h"
+#include "src/simix/smx_process_private.h"
 
 #include "src/mc/mc_replay.h"
 #include "src/mc/mc_record.h"
 #include "src/mc/mc_base.h"
 
-#ifdef HAVE_MC
+#if HAVE_MC
+#include "src/mc/mc_request.h"
 #include "src/mc/mc_private.h"
 #include "src/mc/mc_state.h"
 #include "src/mc/mc_smx.h"
 #include "src/mc/mc_liveness.h"
 #endif
 
-extern "C" {
-
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(mc_record, mc,
   " Logging specific to MC record/replay facility");
+
+extern "C" {
 
 char* MC_record_path = nullptr;
 
 void MC_record_replay(mc_record_item_t start, std::size_t len)
 {
-  MC_wait_for_requests();
+  simgrid::mc::wait_for_requests();
   mc_record_item_t end = start + len;
 
   // Choose the recorded simcall and execute it:
@@ -50,12 +57,13 @@ void MC_record_replay(mc_record_item_t start, std::size_t len)
     smx_simcall_t simcall = &(process->simcall);
     if(!simcall || simcall->call == SIMCALL_NONE)
       xbt_die("No simcall for this process.");
-    if (!MC_request_is_visible(simcall) || !MC_request_is_enabled(simcall))
+    if (!simgrid::mc::request_is_visible(simcall)
+        || !simgrid::mc::request_is_enabled(simcall))
       xbt_die("Unexpected simcall.");
 
     // Execute the request:
     SIMIX_simcall_handle(simcall, item->value);
-    MC_wait_for_requests();
+    simgrid::mc::wait_for_requests();
   }
 }
 
@@ -91,7 +99,7 @@ fail:
   return nullptr;
 }
 
-#ifdef HAVE_MC
+#if HAVE_MC
 static char* MC_record_stack_to_string_liveness(xbt_fifo_t stack)
 {
   char* buffer;
@@ -101,7 +109,7 @@ static char* MC_record_stack_to_string_liveness(xbt_fifo_t stack)
   xbt_fifo_item_t item;
   xbt_fifo_item_t start = xbt_fifo_get_last_item(stack);
   for (item = start; item; item = xbt_fifo_get_prev_item(item)) {
-    mc_pair_t pair = (mc_pair_t) xbt_fifo_get_item_content(item);
+    simgrid::mc::Pair* pair = (simgrid::mc::Pair*) xbt_fifo_get_item_content(item);
     int value;
     smx_simcall_t req = MC_state_get_executed_request(pair->graph_state, &value);
     if (req && req->call != SIMCALL_NONE) {
@@ -180,7 +188,7 @@ void MC_record_replay_from_string(const char* path_string)
 
 void MC_record_replay_init()
 {
-  mc_time = xbt_new0(double, simix_process_maxpid);
+  simgrid::mc::processes_time.resize(simix_process_maxpid);
 }
 
 }

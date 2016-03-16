@@ -20,17 +20,10 @@ extern "C" {
   #undef register
 }
 
-bool children_are_marked(SD_task_t task);
-bool parents_are_marked(SD_task_t task);
-
-/* Parsing helpers */
-
 static double dax_parse_double(const char *string)
 {
-  int ret = 0;
   double value;
-
-  ret = sscanf(string, "%lg", &value);
+  int ret = sscanf(string, "%lg", &value);
   xbt_assert (ret == 1, "Parse error on line %d: %s is not a double", dax_lineno, string);
   return value;
 }
@@ -40,16 +33,14 @@ static double dax_parse_double(const char *string)
 void uniq_transfer_task_name(SD_task_t task)
 {
   SD_task_t child, parent;
-  xbt_dynar_t children, parents;
-  char *new_name;
 
-  children = SD_task_get_children(task);
-  parents = SD_task_get_parents(task);
+  xbt_dynar_t children = SD_task_get_children(task);
+  xbt_dynar_t parents = SD_task_get_parents(task);
 
   xbt_dynar_get_cpy(children, 0, &child);
   xbt_dynar_get_cpy(parents, 0, &parent);
 
-  new_name = bprintf("%s_%s_%s", SD_task_get_name(parent), SD_task_get_name(task), SD_task_get_name(child));
+  char *new_name = bprintf("%s_%s_%s", SD_task_get_name(parent), SD_task_get_name(task), SD_task_get_name(child));
 
   SD_task_set_name(task, new_name);
 
@@ -58,42 +49,29 @@ void uniq_transfer_task_name(SD_task_t task)
   free(new_name);
 }
 
-bool children_are_marked(SD_task_t task){
-  SD_task_t child_task = NULL;
-  bool all_marked = true;
+static bool children_are_marked(SD_task_t task){
   SD_dependency_t depafter = NULL;
   unsigned int count;
+
   xbt_dynar_foreach(task->tasks_after,count,depafter){
-    child_task = depafter->dst;
-    //test marked
-    if(child_task->marked == 0) {
-      all_marked = false;
-      break;
-    }
-    child_task = NULL;
+    if(depafter->dst->marked == 0)
+      return false;
   }
-  return all_marked;
+  return true;
 }
 
-bool parents_are_marked(SD_task_t task){
-  SD_task_t parent_task = NULL;
-  bool all_marked = true;
+static bool parents_are_marked(SD_task_t task){
   SD_dependency_t depbefore = NULL;
   unsigned int count;
   xbt_dynar_foreach(task->tasks_before,count,depbefore){
-    parent_task = depbefore->src;
-    //test marked
-    if(parent_task->marked == 0) {
-      all_marked = false;
-      break;
-    }
-    parent_task = NULL;
+    if(depbefore->src->marked == 0)
+      return false;
   }
-  return all_marked;
+  return true;
 }
 
 bool acyclic_graph_detail(xbt_dynar_t dag){
-  unsigned int count=0, count_current=0;
+  unsigned int count, count_current=0;
   bool all_marked = true;
   SD_task_t task = NULL, parent_task = NULL, child_task = NULL;
   SD_dependency_t depbefore = NULL, depafter = NULL;
@@ -106,19 +84,14 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
       xbt_dynar_push(current, &task);
     }
   }
-  task = NULL;
-  count = 0;
   //test if something has to be done for the next iteration
   while(!xbt_dynar_is_empty(current)){
     next = xbt_dynar_new(sizeof(SD_task_t),NULL);
     //test if the current iteration is done
-    count_current=0;
     xbt_dynar_foreach(current,count_current,task){
       if (task == NULL) continue;
-      count = 0;
       //push task in next
       task->marked = 1;
-      count = 0;
       xbt_dynar_foreach(task->tasks_before,count,depbefore){
         parent_task = depbefore->src;
         if(parent_task->kind == SD_TASK_COMM_E2E){
@@ -136,15 +109,12 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
         }
         parent_task = NULL;
       }
-      task = NULL;
-      count = 0;
     }
     xbt_dynar_free(&current);
     current = next;
     next = NULL;
   }
   xbt_dynar_free(&current);
-  current = NULL;
   all_marked = true;
   xbt_dynar_foreach(dag,count,task){
     if(task->kind == SD_TASK_COMM_E2E) continue;
@@ -155,7 +125,6 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
       break;
     }
   }
-  task = NULL;
   if(!all_marked){
     XBT_VERB("there is at least one cycle in your task graph");
 
@@ -167,8 +136,6 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
       }
     }
 
-    count = 0;
-    task = NULL;
     xbt_dynar_foreach(dag,count,task){
       if(task->kind == SD_TASK_COMM_E2E) continue;
       if(xbt_dynar_is_empty(task->tasks_before)){
@@ -176,19 +143,14 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
         xbt_dynar_push(current, &task);
       }
     }
-    task = NULL;
-    count = 0;
     //test if something has to be done for the next iteration
     while(!xbt_dynar_is_empty(current)){
       next = xbt_dynar_new(sizeof(SD_task_t),NULL);
       //test if the current iteration is done
-      count_current=0;
       xbt_dynar_foreach(current,count_current,task){
         if (task == NULL) continue;
-        count = 0;
         //push task in next
         task->marked = 1;
-        count = 0;
         xbt_dynar_foreach(task->tasks_after,count,depafter){
           child_task = depbefore->dst;
           if(child_task->kind == SD_TASK_COMM_E2E){
@@ -206,15 +168,12 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
           }
           child_task = NULL;
         }
-        task = NULL;
-        count = 0;
       }
       xbt_dynar_free(&current);
       current = next;
       next = NULL;
     }
     xbt_dynar_free(&current);
-    current = NULL;
     all_marked = true;
     xbt_dynar_foreach(dag,count,task){
       if(task->kind == SD_TASK_COMM_E2E) continue;
@@ -227,8 +186,6 @@ bool acyclic_graph_detail(xbt_dynar_t dag){
   }
   return all_marked;
 }
-
-
 
 static YY_BUFFER_STATE input_buffer;
 
@@ -340,7 +297,9 @@ xbt_dynar_t SD_daxload(const char *filename)
   }
 
   if (!acyclic_graph_detail(result)){
-    XBT_ERROR("The DAX described in %s is not a DAG. It contains a cycle.", xbt_basename(filename));
+    char* base = xbt_basename(filename);
+    XBT_ERROR("The DAX described in %s is not a DAG. It contains a cycle.", base);
+    free(base);
     xbt_dynar_foreach(result, cpt, file)
       SD_task_destroy(file);
     xbt_dynar_free_container(&result);
@@ -372,12 +331,11 @@ void STag_dax__job(void)
 
 void STag_dax__uses(void)
 {
-  SD_task_t file;
   double size = dax_parse_double(A_dax__uses_size);
   int is_input = (A_dax__uses_link == A_dax__uses_link_input);
 
 //  XBT_INFO("See <uses file=%s %s>",A_dax__uses_file,(is_input?"in":"out"));
-  file = (SD_task_t)xbt_dict_get_or_null(files, A_dax__uses_file);
+  SD_task_t file = (SD_task_t)xbt_dict_get_or_null(files, A_dax__uses_file);
   if (file == NULL) {
     file = SD_task_create_comm_e2e(A_dax__uses_file, NULL, size);
     xbt_dynar_pop(sd_global->initial_task_set,NULL);

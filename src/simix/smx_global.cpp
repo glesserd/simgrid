@@ -5,47 +5,36 @@
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
 #include <stdlib.h>
-#include "src/portable.h"
-#ifdef HAVE_SYS_PTRACE_H
-# include <sys/types.h>
-# include <sys/ptrace.h>
-#endif
+#include "src/internal_config.h"
 
 #include "src/surf/surf_interface.hpp"
+#include "src/surf/storage_interface.hpp"
+#include "src/surf/xml/platf.hpp"
 #include "smx_private.h"
 #include "smx_private.hpp"
-#include "xbt/heap.h"
-#include "xbt/sysdep.h"
-#include "xbt/log.h"
 #include "xbt/str.h"
 #include "xbt/ex.h"             /* ex_backtrace_display */
 #include "mc/mc.h"
 #include "src/mc/mc_replay.h"
 #include "simgrid/sg_config.h"
 
-#include "src/surf/callbacks.h"
-
-#ifdef HAVE_MC
+#if HAVE_MC
 #include "src/mc/mc_private.h"
 #include "src/mc/mc_protocol.h"
-#include "src/mc/mc_client.h"
-#endif
+#include "src/mc/Client.hpp"
 
-#ifdef HAVE_MC
 #include <stdlib.h>
 #include "src/mc/mc_protocol.h"
 #endif 
 
 #include "src/mc/mc_record.h"
-#include "src/surf/platform.hpp"
 
-#ifdef HAVE_SMPI
+#if HAVE_SMPI
 #include "src/smpi/private.h"
 #endif
 
 XBT_LOG_NEW_CATEGORY(simix, "All SIMIX categories");
-XBT_LOG_NEW_DEFAULT_SUBCATEGORY(simix_kernel, simix,
-                                "Logging specific to SIMIX (kernel)");
+XBT_LOG_NEW_DEFAULT_SUBCATEGORY(simix_kernel, simix, "Logging specific to SIMIX (kernel)");
 
 smx_global_t simix_global = NULL;
 static xbt_heap_t simix_timers = NULL;
@@ -67,7 +56,7 @@ static void SIMIX_synchro_mallocator_reset_f(void* synchro);
 #include <signal.h>
 
 int _sg_do_verbose_exit = 1;
-static void _XBT_CALL inthandler(int ignored)
+static void inthandler(int ignored)
 {
   if ( _sg_do_verbose_exit ) {
      XBT_INFO("CTRL-C pressed. The current status will be displayed before exit (disable that behavior with option 'verbose-exit').");
@@ -79,8 +68,8 @@ static void _XBT_CALL inthandler(int ignored)
   exit(1);
 }
 
-#ifndef WIN32
-static void _XBT_CALL segvhandler(int signum, siginfo_t *siginfo, void *context)
+#ifndef _WIN32
+static void segvhandler(int signum, siginfo_t *siginfo, void *context)
 {
   if (siginfo->si_signo == SIGSEGV && siginfo->si_code == SEGV_ACCERR) {
     fprintf(stderr,
@@ -99,17 +88,17 @@ static void _XBT_CALL segvhandler(int signum, siginfo_t *siginfo, void *context)
     }
   } else  if (siginfo->si_signo == SIGSEGV) {
     fprintf(stderr, "Segmentation fault.\n");
-#ifdef HAVE_SMPI
+#if HAVE_SMPI
     if (smpi_enabled() && !smpi_privatize_global_variables) {
-#ifdef HAVE_PRIVATIZATION
+#if HAVE_PRIVATIZATION
       fprintf(stderr,
         "Try to enable SMPI variable privatization with --cfg=smpi/privatize_global_variables:yes.\n");
 #else
       fprintf(stderr,
         "Sadly, your system does not support --cfg=smpi/privatize_global_variables:yes (yet).\n");
-#endif
+#endif /* HAVE_PRIVATIZATION */
     }
-#endif
+#endif /* HAVE_SMPI */
   }
   raise(signum);
 }
@@ -128,8 +117,7 @@ static void install_segvhandler(void)
   stack.ss_flags = 0;
 
   if (sigaltstack(&stack, &old_stack) == -1) {
-    XBT_WARN("Failed to register alternate signal stack: %s",
-             strerror(errno));
+    XBT_WARN("Failed to register alternate signal stack: %s", strerror(errno));
     return;
   }
   if (!(old_stack.ss_flags & SS_DISABLE)) {
@@ -144,8 +132,7 @@ static void install_segvhandler(void)
   sigemptyset(&action.sa_mask);
 
   if (sigaction(SIGSEGV, &action, &old_action) == -1) {
-    XBT_WARN("Failed to register signal handler for SIGSEGV: %s",
-             strerror(errno));
+    XBT_WARN("Failed to register signal handler for SIGSEGV: %s", strerror(errno));
     return;
   }
   if ((old_action.sa_flags & SA_SIGINFO) || old_action.sa_handler != SIG_DFL) {
@@ -156,7 +143,7 @@ static void install_segvhandler(void)
   }
 }
 
-#endif
+#endif /* _WIN32 */
 /********************************* SIMIX **************************************/
 
 double SIMIX_timer_next(void)
@@ -175,6 +162,24 @@ static void SIMIX_storage_create_(smx_storage_t storage)
   SIMIX_storage_create(key, storage, NULL);
 }
 
+static std::function<void()> maestro_code;
+
+namespace simgrid {
+namespace simix {
+
+XBT_PUBLIC(void) set_maestro(std::function<void()> code)
+{
+  maestro_code = std::move(code);
+}
+
+}
+}
+
+void SIMIX_set_maestro(void (*code)(void*), void* data)
+{
+  maestro_code = std::bind(code, data);
+}
+
 /**
  * \ingroup SIMIX_API
  * \brief Initialize SIMIX internal data.
@@ -184,7 +189,7 @@ static void SIMIX_storage_create_(smx_storage_t storage)
  */
 void SIMIX_global_init(int *argc, char **argv)
 {
-#ifdef HAVE_MC
+#if HAVE_MC
   _sg_do_model_check = getenv(MC_ENV_VARIABLE) != NULL;
 #endif
 
@@ -200,10 +205,8 @@ void SIMIX_global_init(int *argc, char **argv)
 #endif
     simix_global->process_to_run = xbt_dynar_new(sizeof(smx_process_t), NULL);
     simix_global->process_that_ran = xbt_dynar_new(sizeof(smx_process_t), NULL);
-    simix_global->process_list =
-        xbt_swag_new(xbt_swag_offset(proc, process_hookup));
-    simix_global->process_to_destroy =
-        xbt_swag_new(xbt_swag_offset(proc, destroy_hookup));
+    simix_global->process_list = xbt_swag_new(xbt_swag_offset(proc, process_hookup));
+    simix_global->process_to_destroy = xbt_swag_new(xbt_swag_offset(proc, destroy_hookup));
 
     simix_global->maestro_process = NULL;
     simix_global->registered_functions = xbt_dict_new_homogeneous(NULL);
@@ -218,7 +221,10 @@ void SIMIX_global_init(int *argc, char **argv)
 
     surf_init(argc, argv);      /* Initialize SURF structures */
     SIMIX_context_mod_init();
-    SIMIX_create_maestro_process();
+
+    // Either create a new context with maestro or create
+    // a context object with the current context mestro):
+    simgrid::simix::create_maestro(maestro_code);
 
     /* context exception handlers */
     __xbt_running_ctx_fetch = SIMIX_process_get_running_context;
@@ -229,8 +235,7 @@ void SIMIX_global_init(int *argc, char **argv)
     /* Prepare to display some more info when dying on Ctrl-C pressing */
     signal(SIGINT, inthandler);
 
-#ifndef WIN32
-    /* Install SEGV handler */
+#ifndef _WIN32
     install_segvhandler();
 #endif
     /* register a function to be called by SURF after the environment creation */
@@ -239,22 +244,29 @@ void SIMIX_global_init(int *argc, char **argv)
     simgrid::s4u::Host::onCreation.connect([](simgrid::s4u::Host& host) {
       SIMIX_host_create(&host);
     });
-    surf_on_storage_created(SIMIX_storage_create_);
+    SIMIX_HOST_LEVEL = simgrid::s4u::Host::extension_create(SIMIX_host_destroy);
 
+    simgrid::surf::storageCreatedCallbacks.connect([](simgrid::surf::Storage* storage) {
+      const char* id = storage->getName();
+        // TODO, create sg_storage_by_name
+        sg_storage_t s = xbt_lib_get_elm_or_null(storage_lib, id);
+        xbt_assert(s != NULL, "Storage not found for name %s", id);
+        SIMIX_storage_create_(s);
+      });
+
+    SIMIX_STORAGE_LEVEL = xbt_lib_add_level(storage_lib, SIMIX_storage_destroy);
   }
   if (!simix_timers) {
     simix_timers = xbt_heap_new(8, &free);
   }
 
-  SIMIX_STORAGE_LEVEL = xbt_lib_add_level(storage_lib, SIMIX_storage_destroy);
-
   if (sg_cfg_get_boolean("clean_atexit"))
     atexit(SIMIX_clean);
 
-#ifdef HAVE_MC
+#if HAVE_MC
   // The communication initialization is done ASAP.
   // We need to communicate  initialization of the different layers to the model-checker.
-  MC_client_init();
+  simgrid::mc::Client::initialize();
 #endif
 
   if (_sg_cfg_exit_asap)

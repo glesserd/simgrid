@@ -13,7 +13,6 @@
 #include "xbt/function_types.h"
 #include "xbt/parmap.h"
 #include "xbt/swag.h"
-#include "simgrid/platf.h"
 #include "simgrid/datatypes.h"
 #include "simgrid/host.h"
 
@@ -139,7 +138,7 @@ typedef smx_process_t (*smx_creation_func_t) (
 /**
  * \ingroup simix_rdv_management
  */
-typedef struct s_smx_rvpoint *smx_rdv_t;
+typedef struct s_smx_rvpoint *smx_mailbox_t;
 
 XBT_PUBLIC(void*) SIMIX_comm_get_src_data(smx_synchro_t synchro);
 XBT_PUBLIC(void*) SIMIX_comm_get_dst_data(smx_synchro_t synchro);
@@ -174,6 +173,11 @@ XBT_PUBLIC(int) SIMIX_is_maestro();
 /* Initialization and exit */
 XBT_PUBLIC(void) SIMIX_global_init(int *argc, char **argv);
 
+/* Set to execute in the maestro
+ *
+ * If no maestro code is registered (the default), the main thread
+ * is assumed to be the maestro. */
+XBT_PUBLIC(void) SIMIX_set_maestro(void (*code)(void*), void* data);
 
 XBT_PUBLIC(void) SIMIX_function_register_process_cleanup(void_pfn_smxprocess_t function);
 XBT_PUBLIC(void) SIMIX_function_register_process_create(smx_creation_func_t function);
@@ -211,6 +215,24 @@ XBT_PUBLIC(void) SIMIX_process_set_function(const char* process_host,
                                             double process_kill_time);
 
 /*********************************** Host *************************************/
+/* Functions for running a process in main()
+ *
+ *  1. create the maestro process
+ *  2. attach (create a context and wait for maestro to give control back to you)
+ *  3. do you process job
+ *  4. detach (this waits for the simulation to terminate)
+ */
+
+XBT_PUBLIC(void) SIMIX_maestro_create(void (*code)(void*), void* data);
+XBT_PUBLIC(smx_process_t) SIMIX_process_attach(
+  const char* name,
+  void *data,
+  const char* hostname,
+  xbt_dict_t properties,
+  smx_process_t parent_process);
+XBT_PUBLIC(void) SIMIX_process_detach(void);
+
+/*********************************** Host *************************************/
 XBT_PUBLIC(sg_host_t) SIMIX_host_self(void);
 XBT_PUBLIC(const char*) SIMIX_host_self_get_name(void);
 XBT_PUBLIC(void) SIMIX_host_on(sg_host_t host);
@@ -222,8 +244,8 @@ XBT_PUBLIC(void*) SIMIX_host_self_get_data(void);
 XBT_PUBLIC(int) SIMIX_process_count(void);
 XBT_PUBLIC(smx_process_t) SIMIX_process_self(void);
 XBT_PUBLIC(const char*) SIMIX_process_self_get_name(void);
-XBT_PUBLIC(void) SIMIX_process_self_set_data(smx_process_t self, void *data);
-XBT_PUBLIC(void*) SIMIX_process_self_get_data(smx_process_t self);
+XBT_PUBLIC(void) SIMIX_process_self_set_data(void *data);
+XBT_PUBLIC(void*) SIMIX_process_self_get_data(void);
 XBT_PUBLIC(smx_context_t) SIMIX_process_get_context(smx_process_t);
 XBT_PUBLIC(void) SIMIX_process_set_context(smx_process_t p,smx_context_t c);
 XBT_PUBLIC(int) SIMIX_process_has_pending_comms(smx_process_t process);
@@ -236,9 +258,9 @@ XBT_PUBLIC(void) SIMIX_comm_set_copy_data_callback(void (*callback) (smx_synchro
 XBT_PUBLIC(void) SIMIX_comm_copy_pointer_callback(smx_synchro_t comm, void* buff, size_t buff_size);
 XBT_PUBLIC(void) SIMIX_comm_copy_buffer_callback(smx_synchro_t comm, void* buff, size_t buff_size);
 
-XBT_PUBLIC(smx_synchro_t) SIMIX_comm_get_send_match(smx_rdv_t rdv, int (*match_fun)(void*, void*), void* data);
-XBT_PUBLIC(int) SIMIX_comm_has_send_match(smx_rdv_t rdv, int (*match_fun)(void*, void*), void* data);
-XBT_PUBLIC(int) SIMIX_comm_has_recv_match(smx_rdv_t rdv, int (*match_fun)(void*, void*), void* data);
+XBT_PUBLIC(smx_synchro_t) SIMIX_comm_get_send_match(smx_mailbox_t rdv, int (*match_fun)(void*, void*), void* data);
+XBT_PUBLIC(int) SIMIX_comm_has_send_match(smx_mailbox_t rdv, int (*match_fun)(void*, void*), void* data);
+XBT_PUBLIC(int) SIMIX_comm_has_recv_match(smx_mailbox_t rdv, int (*match_fun)(void*, void*), void* data);
 XBT_PUBLIC(void) SIMIX_comm_finish(smx_synchro_t synchro);
 
 /******************************************************************************/
@@ -343,26 +365,26 @@ XBT_PUBLIC(e_smx_state_t) simcall_process_sleep(double duration);
 /************************** Comunication simcalls *****************************/
 /***** Rendez-vous points *****/
 
-XBT_PUBLIC(smx_rdv_t) simcall_rdv_create(const char *name);
-XBT_PUBLIC(void) simcall_rdv_destroy(smx_rdv_t rvp);
-XBT_PUBLIC(smx_rdv_t) simcall_rdv_get_by_name(const char *name);
-XBT_PUBLIC(int) simcall_rdv_comm_count_by_host(smx_rdv_t rdv, sg_host_t host);
-XBT_PUBLIC(smx_synchro_t) simcall_rdv_get_head(smx_rdv_t rdv);
-XBT_PUBLIC(smx_process_t) simcall_rdv_get_receiver(smx_rdv_t rdv);
-XBT_PUBLIC(void) simcall_rdv_set_receiver(smx_rdv_t rdv , smx_process_t process);
+XBT_PUBLIC(smx_mailbox_t) simcall_rdv_create(const char *name);
+XBT_PUBLIC(void) simcall_rdv_destroy(smx_mailbox_t rvp);
+XBT_PUBLIC(smx_mailbox_t) simcall_rdv_get_by_name(const char *name);
+XBT_PUBLIC(int) simcall_rdv_comm_count_by_host(smx_mailbox_t rdv, sg_host_t host);
+XBT_PUBLIC(smx_synchro_t) simcall_rdv_get_head(smx_mailbox_t rdv);
+XBT_PUBLIC(smx_process_t) simcall_rdv_get_receiver(smx_mailbox_t rdv);
+XBT_PUBLIC(void) simcall_rdv_set_receiver(smx_mailbox_t rdv , smx_process_t process);
 
 XBT_PUBLIC(xbt_dict_t) SIMIX_get_rdv_points(void);
 
 /***** Communication simcalls *****/
 
-XBT_PUBLIC(void) simcall_comm_send(smx_process_t sender, smx_rdv_t rdv, double task_size,
+XBT_PUBLIC(void) simcall_comm_send(smx_process_t sender, smx_mailbox_t rdv, double task_size,
                                      double rate, void *src_buff,
                                      size_t src_buff_size,
                                      int (*match_fun)(void *, void *, smx_synchro_t),
                                      void (*copy_data_fun)(smx_synchro_t, void*, size_t),
                                      void *data, double timeout);
 
-XBT_PUBLIC(smx_synchro_t) simcall_comm_isend(smx_process_t sender, smx_rdv_t rdv,
+XBT_PUBLIC(smx_synchro_t) simcall_comm_isend(smx_process_t sender, smx_mailbox_t rdv,
                                               double task_size,
                                               double rate, void *src_buff,
                                               size_t src_buff_size,
@@ -371,19 +393,19 @@ XBT_PUBLIC(smx_synchro_t) simcall_comm_isend(smx_process_t sender, smx_rdv_t rdv
                                               void (*copy_data_fun)(smx_synchro_t, void*, size_t),
                                               void *data, int detached);
 
-XBT_PUBLIC(void) simcall_comm_recv(smx_process_t receiver, smx_rdv_t rdv, void *dst_buff,
+XBT_PUBLIC(void) simcall_comm_recv(smx_process_t receiver, smx_mailbox_t rdv, void *dst_buff,
                                    size_t * dst_buff_size,
                                    int (*match_fun)(void *, void *, smx_synchro_t),
                                    void (*copy_data_fun)(smx_synchro_t, void*, size_t),
                                    void *data, double timeout, double rate);
 
-XBT_PUBLIC(smx_synchro_t) simcall_comm_irecv(smx_process_t receiver, smx_rdv_t rdv, void *dst_buff,
+XBT_PUBLIC(smx_synchro_t) simcall_comm_irecv(smx_process_t receiver, smx_mailbox_t rdv, void *dst_buff,
                                             size_t * dst_buff_size,
                                             int (*match_fun)(void *, void *, smx_synchro_t),
                                             void (*copy_data_fun)(smx_synchro_t, void*, size_t),
                                             void *data, double rate);
 
-XBT_PUBLIC(smx_synchro_t) simcall_comm_iprobe(smx_rdv_t rdv, int type, int src, int tag,
+XBT_PUBLIC(smx_synchro_t) simcall_comm_iprobe(smx_mailbox_t rdv, int type, int src, int tag,
                                 int (*match_fun)(void *, void *, smx_synchro_t), void *data);
 XBT_PUBLIC(void) simcall_comm_cancel(smx_synchro_t comm);
 
@@ -400,10 +422,6 @@ XBT_PUBLIC(void *) simcall_comm_get_src_data(smx_synchro_t comm);
 XBT_PUBLIC(void *) simcall_comm_get_dst_data(smx_synchro_t comm);
 XBT_PUBLIC(smx_process_t) simcall_comm_get_src_proc(smx_synchro_t comm);
 XBT_PUBLIC(smx_process_t) simcall_comm_get_dst_proc(smx_synchro_t comm);
-
-#ifdef HAVE_LATENCY_BOUND_TRACKING
-XBT_PUBLIC(int) simcall_comm_is_latency_bounded(smx_synchro_t comm);
-#endif
 
 /************************** Tracing handling **********************************/
 XBT_PUBLIC(void) simcall_set_category(smx_synchro_t synchro, const char *category);
@@ -463,8 +481,6 @@ XBT_PUBLIC(xbt_dict_t) SIMIX_asr_get_properties(const char *name);
 XBT_PUBLIC(xbt_dict_t) simcall_asr_get_properties(const char *name);
 
 /************************** MC simcalls   **********************************/
-XBT_PUBLIC(void *) simcall_mc_snapshot(void);
-XBT_PUBLIC(int) simcall_mc_compare_snapshots(void *s1, void *s2);
 XBT_PUBLIC(int) simcall_mc_random(int min, int max);
 
 SG_END_DECL()

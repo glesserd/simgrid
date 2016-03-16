@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "src/portable.h"           /* execinfo when available */
+#include "src/internal_config.h"           /* execinfo when available */
 #include "xbt/ex.h"
 #include "xbt/str.h"
 #include "xbt/synchro_core.h"
@@ -57,14 +57,13 @@
 #include "simgrid/simix.h" /* SIMIX_process_self_get_name() */
 
 #undef HAVE_BACKTRACE
-#if defined(HAVE_EXECINFO_H) && defined(HAVE_POPEN) && defined(ADDR2LINE)
+#if HAVE_EXECINFO_H && HAVE_POPEN && defined(ADDR2LINE)
 # define HAVE_BACKTRACE 1       /* Hello linux box */
 #endif
 
-#if defined(_XBT_WIN32) && defined(_M_IX86) && !defined(__GNUC__)
+#if defined(_WIN32) && defined(_M_IX86) && !defined(__GNUC__)
 # define HAVE_BACKTRACE 1       /* Hello x86 windows box */
 #endif
-
 
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(xbt_ex, xbt, "Exception mecanism");
 
@@ -99,11 +98,8 @@ void xbt_backtrace_display(xbt_ex_t * e)
   if (e->used == 0) {
     fprintf(stderr, "(backtrace not set)\n");
   } else {
-    int i;
-
-    fprintf(stderr, "Backtrace (displayed in process %s):\n",
-        SIMIX_process_self_get_name());
-    for (i = 1; i < e->used; i++)       /* no need to display "xbt_backtrace_display" */
+    fprintf(stderr, "Backtrace (displayed in process %s):\n", SIMIX_process_self_get_name());
+    for (int i = 1; i < e->used; i++)       /* no need to display "xbt_backtrace_display" */
       fprintf(stderr, "---> %s\n", e->bt_strings[i] + 4);
   }
 
@@ -111,7 +107,6 @@ void xbt_backtrace_display(xbt_ex_t * e)
   e->msg = NULL;
   xbt_ex_free(*e);
 #else
-
   XBT_ERROR("No backtrace on this arch");
 #endif
 }
@@ -124,10 +119,8 @@ void xbt_backtrace_display_current(void)
   xbt_backtrace_display(&e);
 }
 
-#if defined(HAVE_EXECINFO_H) && defined(HAVE_POPEN) && defined(ADDR2LINE)
+#if HAVE_EXECINFO_H && HAVE_POPEN && defined(ADDR2LINE)
 # include "src/xbt/backtrace_linux.c"
-#elif (defined(_XBT_WIN32) && defined (_M_IX86)) && !defined(__GNUC__)
-# include "src/xbt/backtrace_windows.c"
 #else
 # include "src/xbt/backtrace_dummy.c"
 #endif
@@ -139,12 +132,10 @@ void xbt_ex_display(xbt_ex_t * e)
   if (e->pid != xbt_getpid())
     thrower = bprintf(" on process %d",e->pid);
 
-  fprintf(stderr,
-          "** SimGrid: UNCAUGHT EXCEPTION received on %s(%d): category: %s; value: %d\n"
+  fprintf(stderr, "** SimGrid: UNCAUGHT EXCEPTION received on %s(%d): category: %s; value: %d\n"
           "** %s\n"
           "** Thrown by %s()%s\n",
-          xbt_binary_name, xbt_getpid(),
-          xbt_ex_catname(e->category), e->value, e->msg,
+          xbt_binary_name, xbt_getpid(), xbt_ex_catname(e->category), e->value, e->msg,
           e->procname, thrower ? thrower : " in this process");
   XBT_CRITICAL("%s", e->msg);
   xbt_free(thrower);
@@ -189,18 +180,12 @@ void xbt_ex_display(xbt_ex_t * e)
         fprintf(stderr, "%s\n", e->bt_strings[i]);
       }
     }
-
   } else
 #endif
-  {
-    fprintf(stderr,
-            "\n"
-            "**   In %s() at %s:%d\n"
-            "**   (no backtrace available)\n",
-            e->func, e->file, e->line);
-  }
+    fprintf(stderr, "\n"
+        "**   In %s() at %s:%d\n"
+        "**   (no backtrace available)\n", e->func, e->file, e->line);
 }
-
 
 /* default __ex_terminate callback function */
 void __xbt_ex_terminate_default(xbt_ex_t * e)
@@ -213,19 +198,15 @@ void __xbt_ex_terminate_default(xbt_ex_t * e)
 XBT_EXPORT_NO_IMPORT(xbt_running_ctx_fetcher_t) __xbt_running_ctx_fetch = &__xbt_ex_ctx_default;
 XBT_EXPORT_NO_IMPORT(ex_term_cb_t) __xbt_ex_terminate = &__xbt_ex_terminate_default;
 
-
 void xbt_ex_free(xbt_ex_t e)
 {
-  int i;
-
   free(e.msg);
 
   if (e.bt_strings) {
-    for (i = 0; i < e.used; i++)
+    for (int i = 0; i < e.used; i++)
       free(e.bt_strings[i]);
     free(e.bt_strings);
   }
-  /* memset(e,0,sizeof(xbt_ex_t)); */
 }
 
 /** \brief returns a short name for the given exception category */
@@ -260,11 +241,9 @@ const char *xbt_ex_catname(xbt_errcat_t cat)
     return "io error";
   case vm_error:
     return "vm error";
-
   }
   return "INVALID ERROR";
 }
-
 
 #ifdef SIMGRID_TEST
 #include <stdio.h>
@@ -288,8 +267,7 @@ XBT_TEST_UNIT("controlflow", test_controlflow, "basic nested control flow")
         xbt_test_fail("M2: n=%d (!= 2)", n);
       n++;
       THROWF(unknown_error, 0, "something");
-    }
-    CATCH(ex) {
+    } CATCH(ex) {
       if (n != 3)
         xbt_test_fail("M3: n=%d (!= 3)", n);
       n++;
@@ -301,8 +279,7 @@ XBT_TEST_UNIT("controlflow", test_controlflow, "basic nested control flow")
         xbt_test_fail("M2: n=%d (!= 5)", n);
       n++;
       THROWF(unknown_error, 0, "something");
-    }
-    CATCH_ANONYMOUS {
+    } CATCH_ANONYMOUS {
       if (n != 6)
         xbt_test_fail("M3: n=%d (!= 6)", n);
       n++;
@@ -310,8 +287,7 @@ XBT_TEST_UNIT("controlflow", test_controlflow, "basic nested control flow")
       n++;
     }
     xbt_test_fail("MX: n=%d (shouldn't reach this point)", n);
-  }
-  CATCH(ex) {
+  } CATCH(ex) {
     if (n != 7)
       xbt_test_fail("M4: n=%d (!= 7)", n);
     n++;
@@ -327,8 +303,7 @@ XBT_TEST_UNIT("value", test_value, "exception value passing")
 
   TRY {
     THROWF(unknown_error, 2, "toto");
-  }
-  CATCH(ex) {
+  } CATCH(ex) {
     xbt_test_add("exception value passing");
     if (ex.category != unknown_error)
       xbt_test_fail("category=%d (!= 1)", (int)ex.category);
@@ -353,8 +328,7 @@ XBT_TEST_UNIT("variables", test_variables, "variable value preservation")
     r2 = 5678;
     v2 = 5678;
     THROWF(unknown_error, 0, "toto");
-  }
-  CATCH(ex) {
+  } CATCH(ex) {
     xbt_test_add("variable preservation");
     if (r1 != 1234)
       xbt_test_fail("r1=%d (!= 1234)", r1);
@@ -385,8 +359,7 @@ XBT_TEST_UNIT("cleanup", test_cleanup, "cleanup handling")
     if (v1 != 5678)
       xbt_test_fail("v1 = %d (!= 5678)", v1);
     c = 1;
-  }
-  CATCH(ex) {
+  } CATCH(ex) {
     if (v1 != 5678)
       xbt_test_fail("v1 = %d (!= 5678)", v1);
     if (!(ex.category == 1 && ex.value == 2 && !strcmp(ex.msg, "blah")))
@@ -396,7 +369,6 @@ XBT_TEST_UNIT("cleanup", test_cleanup, "cleanup handling")
   if (!c)
     xbt_test_fail("xbt_ex_free not executed");
 }
-
 
 /*
  * The following is the example included in the documentation. It's a good

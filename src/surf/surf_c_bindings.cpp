@@ -4,10 +4,9 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
-#include "host_interface.hpp"
+#include "src/surf/HostImpl.hpp"
 #include "surf_interface.hpp"
 #include "network_interface.hpp"
-#include "surf_routing_cluster.hpp"
 #include "src/instr/instr_private.h"
 #include "plugins/energy.hpp"
 #include "virtual_machine.hpp"
@@ -18,12 +17,12 @@ XBT_LOG_EXTERNAL_DEFAULT_CATEGORY(surf_kernel);
  * TOOLS *
  *********/
 
-static simgrid::surf::Host *get_casted_host(sg_host_t host){ //FIXME: killme
-  return host->extension<simgrid::surf::Host>();
+static simgrid::surf::HostImpl *get_casted_host(sg_host_t host){ //FIXME: killme
+  return host->extension<simgrid::surf::HostImpl>();
 }
 
 static simgrid::surf::VirtualMachine *get_casted_vm(sg_host_t host){
-  return static_cast<simgrid::surf::VirtualMachine*>(host->extension<simgrid::surf::Host>());
+  return static_cast<simgrid::surf::VirtualMachine*>(host->extension<simgrid::surf::HostImpl>());
 }
 
 extern double NOW;
@@ -181,13 +180,6 @@ int surf_model_running_action_set_size(surf_model_t model){
   return model->getRunningActionSet()->size();
 }
 
-xbt_dynar_t surf_host_model_get_route(surf_host_model_t /*model*/,
-                                             sg_host_t src, sg_host_t dst){
-  xbt_dynar_t route = NULL;
-  routing_platf->getRouteAndLatency(src->pimpl_netcard, dst->pimpl_netcard, &route, NULL);
-  return route;
-}
-
 void surf_vm_model_create(const char *name, sg_host_t ind_phys_host){
   surf_vm_model->createVM(name, ind_phys_host);
 }
@@ -207,10 +199,6 @@ surf_action_t surf_host_sleep(sg_host_t host, double duration){
 
 double surf_host_get_available_speed(sg_host_t host){
   return host->pimpl_cpu->getAvailableSpeed();
-}
-
-xbt_dynar_t surf_host_get_attached_storage_list(sg_host_t host){
-  return get_casted_host(host)->getAttachedStorageList();
 }
 
 surf_action_t surf_host_open(sg_host_t host, const char* fullpath){
@@ -252,28 +240,6 @@ int surf_host_file_seek(sg_host_t host, surf_file_t fd,
 
 int surf_host_file_move(sg_host_t host, surf_file_t fd, const char* fullpath){
   return get_casted_host(host)->fileMove(fd, fullpath);
-}
-
-xbt_dynar_t surf_host_get_vms(sg_host_t host){
-  xbt_dynar_t vms = get_casted_host(host)->getVms();
-  xbt_dynar_t vms_ = xbt_dynar_new(sizeof(sg_host_t), NULL);
-  unsigned int cpt;
-  simgrid::surf::VirtualMachine *vm;
-  xbt_dynar_foreach(vms, cpt, vm) {
-    // TODO, use a backlink from simgrid::surf::Host to simgrid::s4u::Host 
-    sg_host_t vm_ = (sg_host_t) xbt_dict_get_elm_or_null(host_list, vm->getName());
-    xbt_dynar_push(vms_, &vm_);
-  }
-  xbt_dynar_free(&vms);
-  return vms_;
-}
-
-void surf_host_get_params(sg_host_t host, vm_params_t params){
-  get_casted_host(host)->getParams(params);
-}
-
-void surf_host_set_params(sg_host_t host, vm_params_t params){
-  get_casted_host(host)->setParams(params);
 }
 
 void surf_vm_destroy(sg_host_t vm){ // FIXME:DEADCODE
@@ -337,51 +303,9 @@ const char* surf_storage_get_host(surf_resource_t resource){
   return static_cast<simgrid::surf::Storage*>(surf_storage_resource_priv(resource))->p_attach;
 }
 
-double surf_action_get_start_time(surf_action_t action){
-  return action->getStartTime();
-}
-
-double surf_action_get_finish_time(surf_action_t action){
-  return action->getFinishTime();
-}
-
-double surf_action_get_remains(surf_action_t action){
-  return action->getRemains();
-}
-
-void surf_action_set_category(surf_action_t action, const char *category){
-  action->setCategory(category);
-}
-
-void *surf_action_get_data(surf_action_t action){
-  return action->getData();
-}
-
-void surf_action_set_data(surf_action_t action, void *data){
-  action->setData(data);
-}
-
-e_surf_action_state_t surf_action_get_state(surf_action_t action){
-  return action->getState();
-}
-
-double surf_action_get_cost(surf_action_t action){
-  return action->getCost();
-}
-
-void surf_cpu_action_set_affinity(surf_action_t action, sg_host_t host, unsigned long mask) {
-  static_cast<simgrid::surf::CpuAction*>(action)->setAffinity(host->pimpl_cpu, mask);
-}
-
 void surf_cpu_action_set_bound(surf_action_t action, double bound) {
   static_cast<simgrid::surf::CpuAction*>(action)->setBound(bound);
 }
-
-#ifdef HAVE_LATENCY_BOUND_TRACKING
-double surf_network_action_get_latency_limited(surf_action_t action) {
-  return static_cast<simgrid::surf::NetworkAction*>(action)->getLatencyLimited();
-}
-#endif
 
 surf_file_t surf_storage_action_get_file(surf_action_t action){
   return static_cast<simgrid::surf::StorageAction*>(action)->p_file;

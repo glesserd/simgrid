@@ -15,9 +15,9 @@ message("-- [Java] JNI found: ${JNI_FOUND}")
 message("-- [Java] JNI include dirs: ${JNI_INCLUDE_DIRS}")
 
 if(WIN32)
-  exec_program("java -d32 -version" OUTPUT_VARIABLE IS_32_BITS_JVM)
-  STRING( FIND ${IS_32_BITS_JVM} "Error" POSITION )
-  if(NOT ${POSITION} GREATER -1)
+  execute_process(COMMAND         java -d64 -version
+                  OUTPUT_VARIABLE JVM_IS_64_BITS)
+  if("${JVM_IS_64_BITS}" MATCHES "Error")
     message(fatal_error "SimGrid can only use Java 64 bits")
   endif()
 endif()
@@ -58,7 +58,7 @@ message("-- [Java] simgrid-java includes: ${CHECK_INCLUDES}")
 ## Files to include in simgrid.jar
 ##
 set(SIMGRID_JAR "${CMAKE_BINARY_DIR}/simgrid.jar")
-set(MANIFEST_IN_FILE "${CMAKE_HOME_DIRECTORY}/src/bindings/java/MANIFEST.MF.in")
+set(MANIFEST_IN_FILE "${CMAKE_HOME_DIRECTORY}/src/bindings/java/MANIFEST.in")
 set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/src/bindings/java/MANIFEST.MF")
 
 set(LIBSIMGRID_SO
@@ -86,7 +86,6 @@ if (enable_documentation)
             ${CMAKE_HOME_DIRECTORY}/COPYING
             ${CMAKE_HOME_DIRECTORY}/ChangeLog
             ${CMAKE_HOME_DIRECTORY}/NEWS
-            ${CMAKE_HOME_DIRECTORY}/ChangeLog.SimGrid-java
             ${CMAKE_HOME_DIRECTORY}/LICENSE-LGPL-2.1
 
     COMMAND ${CMAKE_COMMAND} -E copy ${MANIFEST_IN_FILE} ${MANIFEST_FILE}
@@ -134,10 +133,12 @@ if(enable_lib_in_jar)
     
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/lib/${LIBSIMGRID_SO}      ${JAVA_NATIVE_PATH}/${LIBSIMGRID_SO}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/lib/${LIBSIMGRID_JAVA_SO} ${JAVA_NATIVE_PATH}/${LIBSIMGRID_JAVA_SO}
-    # There is no way to disable the dependency of mingw-64 on that lib, unfortunately
-    # nor to script cmake -E properly, so let's be brutal
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different C:/mingw64/bin/libwinpthread-1.dll  ${JAVA_NATIVE_PATH}/libwinpthread-1.dll || true
-    
+    # There is no way to disable the dependency of mingw-64 on that lib, unfortunately nor to script cmake -E properly
+    # So let's be brutal and copy it in any case (even on non-windows builds) from the location where chocolatey installs it.
+    # The copy is only expected to work on the appveyor builder, but that's all we need right now
+    # since our users are directed to download that file as nightly build.
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different C:/tools/mingw64/bin/libwinpthread-1.dll  ${JAVA_NATIVE_PATH}/libwinpthread-1.dll || true
+
     COMMAND ${JAVA_ARCHIVE} -uvf ${SIMGRID_JAR}  ${JAVA_NATIVE_PATH}
     
     COMMAND ${CMAKE_COMMAND} -E echo "-- Cmake put the native code in ${JAVA_NATIVE_PATH}"

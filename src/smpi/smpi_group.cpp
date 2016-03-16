@@ -6,8 +6,7 @@
 
 #include "private.h"
 
-XBT_LOG_NEW_DEFAULT_SUBCATEGORY(smpi_group, smpi,
-                                "Logging specific to SMPI (group)");
+XBT_LOG_NEW_DEFAULT_SUBCATEGORY(smpi_group, smpi, "Logging specific to SMPI (group)");
 
 typedef struct s_smpi_mpi_group {
   int size;
@@ -50,10 +49,8 @@ MPI_Group smpi_group_copy(MPI_Group origin)
   xbt_dict_cursor_t cursor = NULL;
   
   int i;
-  if(origin!= smpi_comm_group(MPI_COMM_WORLD)
-            && origin != MPI_GROUP_NULL
-            && origin != smpi_comm_group(MPI_COMM_SELF)
-            && origin != MPI_GROUP_EMPTY)
+  if(origin!= smpi_comm_group(MPI_COMM_WORLD) && origin != MPI_GROUP_NULL
+            && origin != smpi_comm_group(MPI_COMM_SELF) && origin != MPI_GROUP_EMPTY)
     {
       group = xbt_new(s_smpi_mpi_group_t, 1);
       group->size = origin->size;
@@ -72,7 +69,6 @@ MPI_Group smpi_group_copy(MPI_Group origin)
   return group;
 }
 
-
 void smpi_group_destroy(MPI_Group group)
 {
   if(group!= smpi_comm_group(MPI_COMM_WORLD)
@@ -84,21 +80,17 @@ void smpi_group_destroy(MPI_Group group)
 
 void smpi_group_set_mapping(MPI_Group group, int index, int rank)
 {
-  char * key;
   int * val_rank;
 
   if (rank < group->size) {
     group->rank_to_index_map[rank] = index;
     if (index!=MPI_UNDEFINED ) {
       val_rank = (int *) malloc(sizeof(int));
-      *val_rank = rank; 
-      int size = asprintf(&key, "%d", index);
-      if (size!=-1){
-        xbt_dict_set(group->index_to_rank_map, key, val_rank, NULL);
-        free(key);
-      } else {
-        xbt_die("could not allocate memory for asprintf");
-      }
+      *val_rank = rank;
+
+      char * key = bprintf("%d", index);
+      xbt_dict_set(group->index_to_rank_map, key, val_rank, NULL);
+      free(key);
     }
   }
 }
@@ -116,13 +108,10 @@ int smpi_group_index(MPI_Group group, int rank)
 int smpi_group_rank(MPI_Group group, int index)
 {
   int * ptr_rank = NULL;
-  char * key;
-  int size = asprintf(&key, "%d", index);
-  if (size!=-1){
-    ptr_rank = static_cast<int*>(xbt_dict_get_or_null(group->index_to_rank_map, key));
-    xbt_free(key);
-  }else
-    xbt_die("could not allocate memory for asprintf");
+  char * key = bprintf("%d", index);
+  ptr_rank = static_cast<int*>(xbt_dict_get_or_null(group->index_to_rank_map, key));
+  xbt_free(key);
+
   if (!ptr_rank)
     return MPI_UNDEFINED;
   return *ptr_rank;
@@ -144,7 +133,6 @@ int smpi_group_unuse(MPI_Group group)
     return 0;
   }
   return group->refcount;
-
 }
 
 int smpi_group_size(MPI_Group group)

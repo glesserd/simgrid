@@ -6,11 +6,9 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
     set(CMAKE_Fortran_COMPILER "${CMAKE_BINARY_DIR}/smpi_script/bin/smpiff")
   endif()
 
-  set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
   set(MPICH_FLAGS "-DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1 -DUSE_STDARG=1 -DHAVE_LONG_DOUBLE=1 -DHAVE_PROTOTYPES=1 -DHAVE_SIGNAL_H=1 -DHAVE_SIGACTION=1 -DHAVE_SLEEP=1 -DHAVE_SYSCONF=1  -Wno-error=unused-variable")
   include_directories(BEFORE "${CMAKE_HOME_DIRECTORY}/include/smpi")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../include/")
-
 
   add_executable(accfence1 accfence1.c)
   add_executable(accfence2_am accfence2_am.c)
@@ -108,8 +106,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
 #  add_executable(win_zero win_zero.c)
 #  add_executable(wintest wintest.c)
 
-
-
   target_link_libraries(accfence1 simgrid mtest_c)
   target_link_libraries(accfence2_am simgrid mtest_c)
   target_link_libraries(accfence2 simgrid mtest_c)
@@ -206,8 +202,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
 #  target_link_libraries(win_zero simgrid mtest_c)
 #  target_link_libraries(wintest simgrid mtest_c)
 
-
-
  set_target_properties(accfence1 PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
  set_target_properties(accfence2_am PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
  set_target_properties(accfence2 PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
@@ -303,17 +297,8 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
 # set_target_properties(win_large_shm PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
 # set_target_properties(win_zero PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
 # set_target_properties(wintest PROPERTIES COMPILE_FLAGS "${MPICH_FLAGS}")
-
 endif()
 
-set(tesh_files
-  ${tesh_files}
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  PARENT_SCOPE
-  )
 set(examples_src
   ${examples_src}
  ${CMAKE_CURRENT_SOURCE_DIR}/accfence1.c 
@@ -411,16 +396,10 @@ set(examples_src
  ${CMAKE_CURRENT_SOURCE_DIR}/win_shared_noncontig.c 
  ${CMAKE_CURRENT_SOURCE_DIR}/win_shared_noncontig_put.c 
  ${CMAKE_CURRENT_SOURCE_DIR}/wintest.c 
-  PARENT_SCOPE
-  )
-set(bin_files
-  ${bin_files}
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)
 set(txt_files
   ${txt_files}
   ${CMAKE_CURRENT_SOURCE_DIR}/testlist
   ${CMAKE_CURRENT_SOURCE_DIR}/mcs-mutex.h
   ${CMAKE_CURRENT_SOURCE_DIR}/squelch.h
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)

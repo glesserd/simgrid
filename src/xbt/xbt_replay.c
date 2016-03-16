@@ -55,17 +55,9 @@ xbt_replay_reader_t xbt_replay_reader_new(const char *filename)
 {
   xbt_replay_reader_t res = xbt_new0(s_xbt_replay_reader_t,1);
   res->fp = fopen(filename, "r");
-  if (res->fp == NULL)
-    xbt_die("Cannot open %s: %s", filename, strerror(errno));
+  xbt_assert(res->fp != NULL, "Cannot open %s: %s", filename, strerror(errno));
   res->filename = xbt_strdup(filename);
   return res;
-}
-
-const char *xbt_replay_reader_position(xbt_replay_reader_t reader)
-{
-  free(reader->position);
-  reader->position = bprintf("%s:%d",reader->filename,reader->linenum);
-  return reader->position;
 }
 
 const char **xbt_replay_reader_get(xbt_replay_reader_t reader)
@@ -121,18 +113,6 @@ void xbt_replay_action_register(const char *action_name, action_fun function)
   xbt_free(lowername);
 }
 
-/** \ingroup XBT_replay
- * \brief Unregisters a function, which handled a kind of action
- *
- * \param action_name the reference name of the action.
- */
-void xbt_replay_action_unregister(const char *action_name)
-{
-  char* lowername = str_tolower (action_name);
-  xbt_dict_remove(xbt_action_funs, lowername);
-  xbt_free(lowername);
-}
-
 /** @brief Initializes the replay mechanism, and returns true if (and only if) it was necessary
  *
  * It returns false if it was already done by another process.
@@ -172,16 +152,13 @@ int xbt_replay_action_runner(int argc, char *argv[])
     char **evt;
     while ((evt = action_get_action(argv[0]))) {
       char* lowername = str_tolower (evt[1]);
-      action_fun function =
-        (action_fun)xbt_dict_get(xbt_action_funs, lowername);
+      action_fun function = (action_fun)xbt_dict_get(xbt_action_funs, lowername);
       xbt_free(lowername);
       TRY{
         function((const char **)evt);
-      }
-      CATCH(e) {
+      } CATCH(e) {
         free(evt);
-        xbt_die("Replay error :\n %s"
-                  , e.msg);
+        xbt_die("Replay error :\n %s", e.msg);
       }
       for (i=0;evt[i]!= NULL;i++)
         free(evt[i]);
@@ -191,8 +168,7 @@ int xbt_replay_action_runner(int argc, char *argv[])
     const char **evt;
     xbt_assert(argc >= 2,
                 "No '%s' agent function provided, no simulation-wide trace file provided, "
-                "and no process-wide trace file provided in deployment file. Aborting.",
-                argv[0]
+                "and no process-wide trace file provided in deployment file. Aborting.", argv[0]
         );
     xbt_replay_reader_t reader = xbt_replay_reader_new(argv[1]);
     while ((evt=xbt_replay_reader_get(reader))) {
@@ -202,15 +178,12 @@ int xbt_replay_action_runner(int argc, char *argv[])
         xbt_free(lowername);
         TRY{
           function(evt);
-        }
-        CATCH(e) {
+        } CATCH(e) {
           free(evt);
-          xbt_die("Replay error on line %d of file %s :\n %s"
-                     , reader->linenum,reader->filename, e.msg);               
+          xbt_die("Replay error on line %d of file %s :\n %s" , reader->linenum,reader->filename, e.msg);
         }
       } else {
-        XBT_WARN("%s: Ignore trace element not for me",
-              xbt_replay_reader_position(reader));
+        XBT_WARN("%s:%d: Ignore trace element not for me", reader->filename, reader->linenum);
       }
       free(evt);
     }
@@ -219,7 +192,6 @@ int xbt_replay_action_runner(int argc, char *argv[])
   return 0;
 }
 
-
 static char **action_get_action(char *name)
 {
   xbt_dynar_t evt = NULL;
@@ -227,7 +199,6 @@ static char **action_get_action(char *name)
 
   xbt_dynar_t myqueue = xbt_dict_get_or_null(xbt_action_queues, name);
   if (myqueue == NULL || xbt_dynar_is_empty(myqueue)) {      // nothing stored for me. Read the file further
-
     if (xbt_action_fp == NULL) {    // File closed now. There's nothing more to read. I'm out of here
       goto todo_done;
     }
@@ -254,8 +225,7 @@ static char **action_get_action(char *name)
         xbt_dynar_t otherqueue =
             xbt_dict_get_or_null(xbt_action_queues, evtname);
         if (otherqueue == NULL) {       // Damn. Create the queue of that guy
-          otherqueue =
-              xbt_dynar_new(sizeof(xbt_dynar_t), xbt_dynar_free_voidp);
+          otherqueue = xbt_dynar_new(sizeof(xbt_dynar_t), xbt_dynar_free_voidp);
           xbt_dict_set(xbt_action_queues, evtname, otherqueue, NULL);
         }
         xbt_dynar_push(otherqueue, &evt);
@@ -267,7 +237,6 @@ static char **action_get_action(char *name)
     xbt_dynar_shift(myqueue, &evt);
     return xbt_dynar_to_array(evt);
   }
-
 
   // I did all my actions for me in the file (either I closed the file, or a colleague did)
   // Let's cleanup before leaving

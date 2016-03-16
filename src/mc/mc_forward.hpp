@@ -26,6 +26,7 @@ class Member;
 class Type;
 class Variable;
 class Frame;
+class SimixProcessInformation;
 
 }
 }

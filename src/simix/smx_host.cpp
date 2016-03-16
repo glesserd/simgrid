@@ -6,11 +6,10 @@
 
 #include "smx_private.h"
 #include "xbt/sysdep.h"
-#include "xbt/log.h"
-#include "xbt/dict.h"
 #include "mc/mc.h"
 #include "src/mc/mc_replay.h"
-#include "src/surf/host_interface.hpp"
+#include "src/surf/virtual_machine.hpp"
+#include "src/surf/HostImpl.hpp"
 
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(simix_host, simix,
                                 "SIMIX hosts");
@@ -27,8 +26,7 @@ void SIMIX_host_create(sg_host_t host) // FIXME: braindead prototype. Take sg_ho
   s_smx_process_t proc;
 
   /* Host structure */
-  smx_host->process_list =
-      xbt_swag_new(xbt_swag_offset(proc, host_proc_hookup));
+  smx_host->process_list = xbt_swag_new(xbt_swag_offset(proc, host_proc_hookup));
 
   /* Update global variables */
   sg_host_simix_set(host, smx_host);
@@ -44,8 +42,8 @@ void SIMIX_host_on(sg_host_t h)
 
   xbt_assert((host != NULL), "Invalid parameters");
 
-  if (h->is_off()) {
-    simgrid::surf::Host* surf_host = h->extension<simgrid::surf::Host>();
+  if (h->isOff()) {
+    simgrid::surf::HostImpl* surf_host = h->extension<simgrid::surf::HostImpl>();
     surf_host->turnOn();
 
     unsigned int cpt;
@@ -93,8 +91,8 @@ void SIMIX_host_off(sg_host_t h, smx_process_t issuer)
 
   xbt_assert((host != NULL), "Invalid parameters");
 
-  if (h->is_on()) {
-    simgrid::surf::Host* surf_host = h->extension<simgrid::surf::Host>();
+  if (h->isOn()) {
+    simgrid::surf::HostImpl* surf_host = h->extension<simgrid::surf::HostImpl>();
     surf_host->turnOff();
 
     /* Clean Simulator data */
@@ -323,19 +321,12 @@ smx_synchro_t SIMIX_execution_parallel_start(const char *name,
   for (i = 0; i < host_nb; i++)
     host_list_cpy[i] = host_list[i];
 
-
-  /* FIXME: what happens if host_list contains VMs and PMs. If
-   * execute_parallel_task() does not change the state of the model, we can mix
-   * them. */
-  surf_host_model_t ws_model =
-    host_list[0]->extension<simgrid::surf::Host>()->getModel();
+  /* Check that we are not mixing VMs and PMs in the parallel task */
+  simgrid::surf::HostImpl *host = host_list[0]->extension<simgrid::surf::HostImpl>();
+  bool is_a_vm = (nullptr != dynamic_cast<simgrid::surf::VirtualMachine*>(host));
   for (i = 1; i < host_nb; i++) {
-    surf_host_model_t ws_model_tmp =
-      host_list[i]->extension<simgrid::surf::Host>()->getModel();
-    if (ws_model_tmp != ws_model) {
-      XBT_CRITICAL("mixing VMs and PMs is not supported");
-      DIE_IMPOSSIBLE;
-    }
+    bool tmp_is_a_vm = (nullptr != dynamic_cast<simgrid::surf::VirtualMachine*>(host_list[i]->extension<simgrid::surf::HostImpl>()));
+    xbt_assert(is_a_vm == tmp_is_a_vm, "parallel_execute: mixing VMs and PMs is not supported (yet).");
   }
 
   /* set surf's synchro */
@@ -376,7 +367,7 @@ double SIMIX_execution_get_remains(smx_synchro_t synchro)
   double result = 0.0;
 
   if (synchro->state == SIMIX_RUNNING)
-    result = surf_action_get_remains(synchro->execution.surf_exec);
+    result = synchro->execution.surf_exec->getRemains();
 
   return result;
 }
@@ -473,7 +464,7 @@ void SIMIX_execution_finish(smx_synchro_t synchro)
             (int)synchro->state);
     }
     /* check if the host is down */
-    if (simcall->issuer->host->is_off()) {
+    if (simcall->issuer->host->isOff()) {
       simcall->issuer->context->iwannadie = 1;
     }
 
@@ -491,7 +482,7 @@ void SIMIX_post_host_execute(smx_synchro_t synchro)
 {
   if (synchro->type == SIMIX_SYNC_EXECUTE && /* FIMXE: handle resource failure
                                                * for parallel tasks too */
-      synchro->execution.host->is_off()) {
+      synchro->execution.host->isOff()) {
     /* If the host running the synchro failed, notice it so that the asking
      * process can be killed if it runs on that host itself */
     synchro->state = SIMIX_FAILED;

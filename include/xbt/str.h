@@ -16,18 +16,13 @@
 #include <stdarg.h>             /* va_* */
 #include <stdio.h>  /* FILE */
 
-#ifdef _MSC_VER
-#define strcasecmp _stricmp
-#endif
-
 SG_BEGIN_DECL()
 
 /** @addtogroup XBT_str
  *  @brief String manipulation functions
  *
- * This module defines several string related functions. Looking at the diversity of string
- * manipulation functions that are provided, you can see that several SimGrid core developers
- * actually like Perl.
+ * This module defines several string related functions. Looking at the diversity of string manipulation functions that
+ * are provided, you can see that several SimGrid core developers actually like Perl.
  * @{
  */
 
@@ -45,17 +40,10 @@ XBT_PUBLIC(xbt_dynar_t) xbt_str_split_str(const char *s, const char *sep);
 XBT_PUBLIC(char *) xbt_str_join(xbt_dynar_t dynar, const char *sep);
 XBT_PUBLIC(char *) xbt_str_join_array(const char *const *strs, const char *sep);
 
-/* */
 XBT_PUBLIC(void) xbt_str_subst(char *str, char from, char to, int amount);
 XBT_PUBLIC(char *) xbt_str_varsubst(const char *str, xbt_dict_t patterns);
 
-/* */
-XBT_PUBLIC(void) xbt_str_strip_spaces(char *);
-XBT_PUBLIC(char *) xbt_str_diff(const char *a, const char *b);
-
 XBT_PUBLIC(char *) xbt_str_from_file(FILE * file);
-
-XBT_PUBLIC(int) xbt_str_start_with(const char* str, const char* start);
 
 XBT_PUBLIC(long int) xbt_str_parse_int(const char* str, const char* error_msg);
 XBT_PUBLIC(double) xbt_str_parse_double(const char* str, const char* error_msg);
@@ -66,9 +54,8 @@ XBT_PUBLIC(double) xbt_str_parse_double(const char* str, const char* error_msg);
 /**
  * @brief Returns the hash code of a string.
  */
-static XBT_INLINE unsigned int xbt_str_hash_ext(const char *str, int str_len)
+static inline unsigned int xbt_str_hash_ext(const char *str, int str_len)
 {
-
 #ifdef DJB2_HASH_FUNCTION
   /* fast implementation of djb2 algorithm */
   int c;
@@ -108,7 +95,7 @@ static XBT_INLINE unsigned int xbt_str_hash_ext(const char *str, int str_len)
 /**
  * @brief Returns the hash code of a string.
  */
-static XBT_INLINE unsigned int xbt_str_hash(const char *str)
+static inline unsigned int xbt_str_hash(const char *str)
 {
 #ifdef DJB2_HASH_FUNCTION
   /* fast implementation of djb2 algorithm */
@@ -124,9 +111,7 @@ static XBT_INLINE unsigned int xbt_str_hash(const char *str)
 
   while (*str) {
     /* multiply by the 32 bit FNV magic prime mod 2^32 */
-    hash +=
-        (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) +
-        (hash << 24);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
 
     /* xor the bottom with the current byte */
     hash ^= (unsigned int) *str++;
@@ -144,6 +129,5 @@ static XBT_INLINE unsigned int xbt_str_hash(const char *str)
 }
 
 /**@}*/
-
 SG_END_DECL()
 #endif                          /* XBT_STR_H */

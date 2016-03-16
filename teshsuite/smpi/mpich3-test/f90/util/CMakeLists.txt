@@ -6,17 +6,13 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite AND SMPI_FORTRAN)
     set(CMAKE_Fortran_COMPILER "${CMAKE_BINARY_DIR}/smpi_script/bin/smpif90")
   endif()
 
-  set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
   include_directories(BEFORE "${CMAKE_HOME_DIRECTORY}/include/smpi")
 
   #F90 version of the mtest library
   add_library(mtest_f90 STATIC ../util/mtestf90.f90)
-
 endif()
-
 
 set(txt_files
   ${txt_files}
   ${CMAKE_CURRENT_SOURCE_DIR}/../util/mtestf90.f90
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)

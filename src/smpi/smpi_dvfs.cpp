@@ -10,8 +10,7 @@
 #include "smpi/smpi.h"
 #include "src/internal_config.h"
 
-XBT_LOG_NEW_DEFAULT_SUBCATEGORY(smpi_dvfs, smpi,
-                                "Logging specific to SMPI (experimental DVFS support)");
+XBT_LOG_NEW_DEFAULT_SUBCATEGORY(smpi_dvfs, smpi, "Logging specific to SMPI (experimental DVFS support)");
 
 /**
  * \brief Return the speed of the processor (in flop/s) at a given pstate
@@ -69,8 +68,7 @@ double smpi_get_host_consumed_energy(void) {
   return sg_host_get_consumed_energy(SIMIX_host_self());
 }
 
-
-#ifdef SMPI_FORTRAN
+#if SMPI_FORTRAN
 
 #if defined(__alpha__) || defined(__sparc64__) || defined(__x86_64__) || defined(__ia64__)
 typedef int integer;

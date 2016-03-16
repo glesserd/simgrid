@@ -8,10 +8,9 @@
 
 #define XBT_LOG_LOCALLY_DEFINE_XBT_CHANNEL /* MSVC don't want it to be declared extern in headers and local here */
 
+
 #include "xbt/misc.h"
-#include "simgrid_config.h"     /* _XBT_WIN32 */
-#include "src/internal_config.h" /* MMALLOC_WANT_OVERRIDE_LEGACY */
-#include "src/portable.h"
+#include "simgrid_config.h"
 #include "xbt/sysdep.h"
 #include "xbt/log.h"
 #include "xbt/dynar.h"
@@ -23,15 +22,18 @@
 
 #include "simgrid/sg_config.h"
 
+#include "src/internal_config.h"
 #include <stdio.h>
-#ifdef _XBT_WIN32
-#include <signal.h>
+#ifdef _WIN32
+#include <signal.h> /* To silence MSVC on abort() */
+#endif
+#if HAVE_UNISTD_H
+#  include <unistd.h>
 #endif
 
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(module, xbt, "module handling");
 
 XBT_LOG_NEW_CATEGORY(smpi, "All SMPI categories"); /* lives here even if that's a bit odd to solve linking issues: this is used in xbt_log_file_appender to detect whether SMPI is used (and thus whether we should unbench the writing to disk) */
-
 
 char *xbt_binary_name = NULL;   /* Name of the system process containing us (mandatory to retrieve neat backtraces) */
 xbt_dynar_t xbt_cmdline = NULL; /* all we got in argv */
@@ -48,7 +50,7 @@ int xbt_pagebits = 0;
 static void xbt_preinit(void) _XBT_GNUC_CONSTRUCTOR(200);
 static void xbt_postexit(void);
 
-#ifdef _XBT_WIN32
+#ifdef _WIN32
 # undef _XBT_NEED_INIT_PRAGMA
 #endif
 
@@ -56,23 +58,16 @@ static void xbt_postexit(void);
 #pragma init (xbt_preinit)
 #endif
 
-#ifdef _XBT_WIN32
+#ifdef _WIN32
 #include <windows.h>
 
 #ifndef __GNUC__
-/* Dummy prototype to make gcc happy */
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
-                    LPVOID lpvReserved);
-
-/* Should not be necessary but for some reason,
- * DllMain is called twice at attachment and
- * at detachment.*/
+/* Should not be necessary but for some reason, DllMain is called twice at attachment and at detachment.*/
 static int xbt_dll_process_is_attached = 0;
 
 /* see also http://msdn.microsoft.com/en-us/library/ms682583%28VS.85%29.aspx */
 /* and http://www.microsoft.com/whdc/driver/kernel/DLL_bestprac.mspx */
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
-                    LPVOID lpvReserved)
+static BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
   if (fdwReason == DLL_PROCESS_ATTACH
       && xbt_dll_process_is_attached == 0) {
@@ -90,12 +85,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
 
 static void xbt_preinit(void) {
   unsigned int seed = 2147483647;
-#ifndef _XBT_WIN32
-  xbt_pagesize = sysconf(_SC_PAGESIZE);
-#else
+#ifdef _WIN32
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   xbt_pagesize = si.dwPageSize;
+#elif HAVE_SYSCONF
+  xbt_pagesize = sysconf(_SC_PAGESIZE);
+#else
+  #error Cannot get page size.
 #endif
 
   xbt_pagebits = 0;
@@ -115,7 +112,7 @@ static void xbt_preinit(void) {
   xbt_dict_preinit();
    
   srand(seed);
-#ifndef _XBT_WIN32
+#ifndef _WIN32
   srand48(seed);
 #endif
   atexit(xbt_postexit);
@@ -132,7 +129,7 @@ static void xbt_postexit(void)
   xbt_dynar_free(&xbt_cmdline);
   xbt_log_postexit();
   free(xbt_binary_name);
-#ifdef MMALLOC_WANT_OVERRIDE_LEGACY
+#if HAVE_MC
   mmalloc_postexit();
 #endif
 }
@@ -184,7 +181,7 @@ void xbt_abort(void)
   extern void __gcov_flush(void);
   __gcov_flush();
 #endif
-#ifdef _XBT_WIN32
+#ifdef _WIN32
   /* It was said *in silence*.  We don't want to see the error message printed
    * by the Microsoft's implementation of abort(). */
   raise(SIGABRT);

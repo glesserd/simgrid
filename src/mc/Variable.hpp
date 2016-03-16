@@ -7,11 +7,11 @@
 #ifndef SIMGRID_MC_VARIABLE_HPP
 #define SIMGRID_MC_VARIABLE_HPP
 
+#include <cstddef>
+
 #include <string>
 
-#include <xbt/base.h>
-
-#include "src/mc/mc_forward.h"
+#include "src/mc/mc_forward.hpp"
 #include "src/mc/LocationList.hpp"
 
 namespace simgrid {
@@ -20,33 +20,28 @@ namespace mc {
 /** A variable (global or local) in the model-checked program */
 class Variable {
 public:
-  Variable();
-
-  unsigned dwarf_offset; /* Global offset of the field. */
-  int global;
+  Variable() {}
+  std::uint32_t id = 0;
+  bool global = false;
   std::string name;
-  unsigned type_id;
-  simgrid::mc::Type* type;
+  unsigned type_id = 0;
+  simgrid::mc::Type* type = nullptr;
 
-  // Use either of:
+  /** Address of the variable (if it is fixed) */
+  void* address = nullptr;
+
+  /** Description of the location of the variable (if it's not fixed) */
   simgrid::dwarf::LocationList location_list;
-  void* address;
 
-  size_t start_scope;
-  simgrid::mc::ObjectInformation* object_info;
+  /** Offset of validity of the variable (DW_AT_start_scope)
+   *
+   *  This is an offset from the variable scope beginning. This variable
+   *  is only valid starting from this offset.
+   */
+  std::size_t start_scope = 0;
+
+  simgrid::mc::ObjectInformation* object_info = nullptr;
 };
-
-inline
-Variable::Variable()
-{
-  this->dwarf_offset = 0;
-  this->global = 0;
-  this->type = nullptr;
-  this->type_id = 0;
-  this->address = nullptr;
-  this->start_scope = 0;
-  this->object_info = nullptr;
-}
 
 }
 }

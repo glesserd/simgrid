@@ -18,7 +18,6 @@ int ROUTING_STORAGE_HOST_LEVEL;
 int SURF_STORAGE_LEVEL;
 xbt_lib_t storage_type_lib;
 int ROUTING_STORAGE_TYPE_LEVEL; //Routing for storage_type level
-xbt_dynar_t mount_list = NULL;
 simgrid::surf::StorageModel *surf_storage_model = NULL;
 
 namespace simgrid {
@@ -44,7 +43,7 @@ StorageModel::StorageModel()
 }
 
 StorageModel::~StorageModel(){
-  lmm_system_free(p_maxminSystem);
+  lmm_system_free(maxminSystem_);
 
   surf_storage_model = NULL;
 
@@ -104,12 +103,9 @@ xbt_dict_t Storage::parseContent(const char *filename)
     return NULL;
 
   xbt_dict_t parse_content = xbt_dict_new_homogeneous(xbt_free_f);
-  FILE *file = NULL;
 
-  file = surf_fopen(filename, "r");
-  if (file == NULL)
-    xbt_die("Cannot open file '%s' (path=%s)", filename,
-            xbt_str_join(surf_path, ":"));
+  FILE *file =  surf_fopen(filename, "r");
+  xbt_assert(file, "Cannot open file '%s' (path=%s)", filename, xbt_str_join(surf_path, ":"));
 
   char *line = NULL;
   size_t len = 0;
@@ -119,14 +115,12 @@ xbt_dict_t Storage::parseContent(const char *filename)
 
   while ((read = xbt_getline(&line, &len, file)) != -1) {
     if (read){
-      if(sscanf(line,"%s %llu", path, &size) == 2) {
-        m_usedSize += size;
-        sg_size_t *psize = xbt_new(sg_size_t, 1);
-        *psize = size;
-        xbt_dict_set(parse_content,path,psize,NULL);
-      } else {
-        xbt_die("Be sure of passing a good format for content file.\n");
-      }
+      xbt_assert(sscanf(line,"%s %llu", path, &size) == 2, "Parse error in %s: %s",filename,line);
+
+      m_usedSize += size;
+      sg_size_t *psize = xbt_new(sg_size_t, 1);
+      *psize = size;
+      xbt_dict_set(parse_content,path,psize,NULL);
     }
   }
   free(line);

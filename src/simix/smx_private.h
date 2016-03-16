@@ -7,6 +7,7 @@
 #ifndef _SIMIX_PRIVATE_H
 #define _SIMIX_PRIVATE_H
 
+#include "src/internal_config.h"
 #include "simgrid/simix.h"
 #include "surf/surf.h"
 #include "xbt/base.h"
@@ -25,6 +26,8 @@
 #include "smx_network_private.h"
 #include "popping_private.h"
 #include "smx_synchro_private.h"
+
+#include <signal.h>
 
 #ifdef __cplusplus
 
@@ -152,10 +155,10 @@ typedef struct s_smx_synchro {
 
     struct {
       e_smx_comm_type_t type;         /* Type of the communication (SIMIX_COMM_SEND or SIMIX_COMM_RECEIVE) */
-      smx_rdv_t rdv;                  /* Rendez-vous where the comm is queued */
+      smx_mailbox_t rdv;                  /* Rendez-vous where the comm is queued */
 
-#ifdef HAVE_MC
-      smx_rdv_t rdv_cpy;              /* Copy of the rendez-vous where the comm is queued, MC needs it for DPOR
+#if HAVE_MC
+      smx_mailbox_t rdv_cpy;              /* Copy of the rendez-vous where the comm is queued, MC needs it for DPOR
                                          (comm.rdv set to NULL when the communication is removed from the mailbox
                                          (used as garbage collector)) */
 #endif
@@ -203,17 +206,13 @@ typedef struct s_smx_synchro {
     } io;
   };
 
-#ifdef HAVE_LATENCY_BOUND_TRACKING
-  int latency_limited;
-#endif
-
   char *category;                     /* simix action category for instrumentation */
 } s_smx_synchro_t;
 
 XBT_PRIVATE void SIMIX_context_mod_init(void);
 XBT_PRIVATE void SIMIX_context_mod_exit(void);
 
-smx_context_t SIMIX_context_new(
+XBT_PRIVATE smx_context_t SIMIX_context_new(
   xbt_main_func_t code, int argc, char **argv,
   void_pfn_smxprocess_t cleanup_func,
   smx_process_t simix_process);
@@ -225,7 +224,7 @@ XBT_PUBLIC_DATA(char sigsegv_stack[SIGSTKSZ]);
 /* We are using the bottom of the stack to save some information, like the
  * valgrind_stack_id. Define smx_context_usable_stack_size to give the remaining
  * size for the stack. */
-#ifdef HAVE_VALGRIND_VALGRIND_H
+#if HAVE_VALGRIND_H
 # define smx_context_usable_stack_size                                  \
   (smx_context_stack_size - sizeof(unsigned int)) /* for valgrind_stack_id */
 #else

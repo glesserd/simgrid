@@ -6,8 +6,6 @@
 file(MAKE_DIRECTORY ${CMAKE_HOME_DIRECTORY}/doc/html/)
 install(DIRECTORY "${CMAKE_HOME_DIRECTORY}/doc/html/"
   DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/doc/simgrid/html/)
-install(DIRECTORY "${CMAKE_HOME_DIRECTORY}/doc/HelloWorld/"
-  DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/doc/simgrid/HelloWorld/)
 
 # binaries
 if(enable_smpi)
@@ -36,8 +34,7 @@ install(PROGRAMS ${CMAKE_HOME_DIRECTORY}/tools/MSG_visualization/colorize.pl
 
 add_custom_target(simgrid-colorizer ALL
   COMMENT "Install ${CMAKE_BINARY_DIR}/bin/colorize"
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/tools/MSG_visualization/colorize.pl ${CMAKE_BINARY_DIR}/bin/colorize
-  )
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/tools/MSG_visualization/colorize.pl ${CMAKE_BINARY_DIR}/bin/colorize)
 
 install(PROGRAMS ${CMAKE_HOME_DIRECTORY}/tools/simgrid_update_xml.pl
   DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/bin/
@@ -45,8 +42,7 @@ install(PROGRAMS ${CMAKE_HOME_DIRECTORY}/tools/simgrid_update_xml.pl
 
 add_custom_target(simgrid_update_xml ALL
   COMMENT "Install ${CMAKE_BINARY_DIR}/bin/simgrid_update_xml"
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/tools/simgrid_update_xml.pl ${CMAKE_BINARY_DIR}/bin/simgrid_update_xml
-  )
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/tools/simgrid_update_xml.pl ${CMAKE_BINARY_DIR}/bin/simgrid_update_xml)
 
 # libraries
 install(TARGETS simgrid
@@ -80,23 +76,6 @@ foreach(file ${examples_to_install})
   install(FILES "examples/${file}"
     DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/doc/simgrid/examples/${location})
 endforeach(file ${examples_to_install})
-
-# bindings cruft
-
-if(HAVE_LUA)
-  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/lib/lua/5.1")
-  add_custom_target(simgrid_lua ALL
-    DEPENDS simgrid
-    ${CMAKE_BINARY_DIR}/lib/lua/5.1/simgrid.${LIB_EXE}
-    )
-  add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/lib/lua/5.1/simgrid.${LIB_EXE}
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ../../libsimgrid.${LIB_EXE} ${CMAKE_BINARY_DIR}/lib/lua/5.1/simgrid.${LIB_EXE}
-    )
-  install(FILES ${CMAKE_BINARY_DIR}/lib/lua/5.1/simgrid.${LIB_EXE}
-    DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/lua/5.1
-    )
-endif()
 
 ###########################################
 ### Fill in the "make uninstall" target ###
@@ -141,15 +120,13 @@ add_custom_target(uninstall
   
     
   COMMAND ${CMAKE_COMMAND} -E	echo "uninstall man ok"
-  WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
-  )
+  WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}")
 
 if(HAVE_LUA)
   add_custom_command(TARGET uninstall
     COMMAND ${CMAKE_COMMAND} -E echo "uninstall binding lua ok"
     COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_INSTALL_PREFIX}/lib/lua/5.1/simgrid.${LIB_EXE}
-    WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}/"
-    )
+    WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}/")
 endif()
 
 ################################################################
@@ -187,9 +164,7 @@ set(source_to_pack
   ${XBT_SRC}
   ${EXTRA_DIST}
   ${CMAKE_SOURCE_FILES}
-  ${EXAMPLES_CMAKEFILES_TXT}
-  ${TESHSUITE_CMAKEFILES_TXT}
-  ${TOOLS_CMAKEFILES_TXT}
+  ${CMAKEFILES_TXT}
   ${DOC_FIGS}
   ${DOC_IMG}
   ${DOC_SOURCES}
@@ -216,8 +191,7 @@ add_custom_target(dist-dir
   COMMAND ${CMAKE_COMMAND} -E remove ${PROJECT_NAME}-${release_version}.tar.gz
   COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_NAME}-${release_version}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_NAME}-${release_version}/doc/html/
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_HOME_DIRECTORY}/doc/html/ ${PROJECT_NAME}-${release_version}/doc/html/
-  )
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_HOME_DIRECTORY}/doc/html/ ${PROJECT_NAME}-${release_version}/doc/html/)
 add_dependencies(dist-dir maintainer_files)
 
 set(dirs_in_tarball "")
@@ -233,22 +207,18 @@ foreach(file ${source_to_pack})
     set(dirs_in_tarball "${dirs_in_tarball};${file_location};")
     add_custom_command(
       TARGET dist-dir
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_NAME}-${release_version}/${file_location}/
-      )
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_NAME}-${release_version}/${file_location}/)
   endif()
 
   # Actually copy the file
   add_custom_command(
     TARGET dist-dir
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/${file} ${PROJECT_NAME}-${release_version}/${file_location}
-    )
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/${file} ${PROJECT_NAME}-${release_version}/${file_location})
 endforeach(file ${source_to_pack})
 
 add_custom_command(
   TARGET dist-dir
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_HOME_DIRECTORY}/tools/cmake/scripts/Makefile.default ${PROJECT_NAME}-${release_version}/Makefile
-  COMMAND ${CMAKE_COMMAND} -E echo "${GIT_VERSION}" > ${PROJECT_NAME}-${release_version}/.gitversion
-  )
+  COMMAND ${CMAKE_COMMAND} -E echo "${GIT_VERSION}" > ${PROJECT_NAME}-${release_version}/.gitversion)
 
 ######################################
 ### Fill in the "make dist" target ###
@@ -258,24 +228,21 @@ add_custom_target(dist
   COMMENT "Removing the distribution directory"
   DEPENDS ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-${release_version}.tar.gz
   COMMAND ${CMAKE_COMMAND} -E echo ${PROJECT_NAME}-${release_version} > ${CMAKE_BINARY_DIR}/VERSION
-  COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_NAME}-${release_version}/
-  )
+  COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_NAME}-${release_version}/)
 
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-${release_version}.tar.gz
   COMMENT "Compressing the archive from the distribution directory"
   COMMAND ${CMAKE_COMMAND} -E tar cf ${PROJECT_NAME}-${release_version}.tar ${PROJECT_NAME}-${release_version}/
   COMMAND gzip -9v ${PROJECT_NAME}-${release_version}.tar
-  COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_NAME}-${release_version}/
-  )
+  COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_NAME}-${release_version}/)
 add_dependencies(dist dist-dir)
 
 if(NOT enable_maintainer_mode)
   add_custom_target(echo-dist
     COMMAND ${CMAKE_COMMAND} -E echo "WARNING: ----------------------------------------------------"
     COMMAND ${CMAKE_COMMAND} -E echo "WARNING: Distrib is generated without option maintainer mode "
-    COMMAND ${CMAKE_COMMAND} -E echo "WARNING: ----------------------------------------------------"
-    )
+    COMMAND ${CMAKE_COMMAND} -E echo "WARNING: ----------------------------------------------------")
   add_dependencies(dist echo-dist)
 endif()
 
@@ -302,14 +269,13 @@ add_custom_target(distcheck
 
   COMMAND ${CMAKE_COMMAND} -E echo "XXX Configure"
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build
-  ${CMAKE_COMMAND}
-  -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_inst
-  ..
+          ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_inst -Denable_lto=OFF ..
+	  
   COMMAND ${CMAKE_COMMAND} -E echo "XXX Build"
-  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build ${CMAKE_MAKE_PROGRAM}
-
+  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build ${CMAKE_MAKE_PROGRAM} -j 4
+  
   COMMAND ${CMAKE_COMMAND} -E echo "XXX Test"
-  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build ctest --output-on-failure
+  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build ctest --output-on-failure -j 4
 
   COMMAND ${CMAKE_COMMAND} -E echo "XXX Install"
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_TEST_DIR}/${PROJECT_NAME}-${release_version}/_build ${CMAKE_MAKE_PROGRAM} install
@@ -330,13 +296,9 @@ add_dependencies(distcheck dist)
 #######################################
 
 if(enable_memcheck)
-  add_custom_target(check
-    COMMAND ctest -D ExperimentalMemCheck
-    )
+  add_custom_target(check COMMAND ctest -D ExperimentalMemCheck)
 else()
-  add_custom_target(check
-    COMMAND make test
-    )
+  add_custom_target(check COMMAND make test)
 endif()
 
 #######################################
@@ -352,11 +314,9 @@ add_custom_target(maintainer-clean
   COMMAND ${CMAKE_COMMAND} -E remove -f src/set_unit.c
   COMMAND ${CMAKE_COMMAND} -E remove -f src/simgrid_units_main.c
   COMMAND ${CMAKE_COMMAND} -E remove -f src/swag_unit.c
-  COMMAND ${CMAKE_COMMAND} -E remove -f src/xbt_sha_unit.c
   COMMAND ${CMAKE_COMMAND} -E remove -f src/xbt_str_unit.c
   COMMAND ${CMAKE_COMMAND} -E remove -f src/xbt_strbuff_unit.c
   COMMAND ${CMAKE_COMMAND} -E remove -f src/xbt_synchro_unit.c
-  WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}"
-  )
+  WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 
 include(CPack)

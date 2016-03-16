@@ -7,15 +7,15 @@
 #include <atomic>
 
 #include "src/internal_config.h"
-#ifdef HAVE_UNISTD_H
+#if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#ifndef _XBT_WIN32
+#ifndef _WIN32
 #include <sys/syscall.h>
 #endif
 
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
 #include <linux/futex.h>
 #include <limits.h>
 #endif
@@ -45,7 +45,7 @@ static void xbt_parmap_posix_worker_signal(xbt_parmap_t parmap);
 static void xbt_parmap_posix_master_signal(xbt_parmap_t parmap);
 static void xbt_parmap_posix_worker_wait(xbt_parmap_t parmap, unsigned round);
 
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
 static void xbt_parmap_futex_master_wait(xbt_parmap_t parmap);
 static void xbt_parmap_futex_worker_signal(xbt_parmap_t parmap);
 static void xbt_parmap_futex_master_signal(xbt_parmap_t parmap);
@@ -54,17 +54,10 @@ static void futex_wait(unsigned *uaddr, unsigned val);
 static void futex_wake(unsigned *uaddr, unsigned val);
 #endif
 
-#ifndef _MSC_VER
 static void xbt_parmap_busy_master_wait(xbt_parmap_t parmap);
 static void xbt_parmap_busy_worker_signal(xbt_parmap_t parmap);
 static void xbt_parmap_busy_master_signal(xbt_parmap_t parmap);
 static void xbt_parmap_busy_worker_wait(xbt_parmap_t parmap, unsigned round);
-#endif
-
-#ifdef HAVE_MC
-static void xbt_parmap_mc_work(xbt_parmap_t parmap, int worker_id);
-static void *xbt_parmap_mc_worker_main(void *arg);
-#endif
 
 /**
  * \brief Parallel map structure
@@ -79,14 +72,6 @@ typedef struct s_xbt_parmap {
   void_f_pvoid_t fun;              /**< function to run in parallel on each element of data */
   xbt_dynar_t data;                /**< parameters to pass to fun in parallel */
   std::atomic<unsigned int> index; /**< index of the next element of data to pick */
-
-#ifdef HAVE_MC
-  int finish;
-  void* ref_snapshot;
-  int_f_pvoid_pvoid_t snapshot_compare;
-  unsigned int length;
-  void* mc_data;
-#endif
 
   /* posix only */
   xbt_os_cond_t ready_cond;
@@ -120,8 +105,6 @@ typedef s_xbt_parmap_thread_data_t *xbt_parmap_thread_data_t;
  */
 xbt_parmap_t xbt_parmap_new(unsigned int num_workers, e_xbt_parmap_mode_t mode)
 {
-  unsigned int i;
-
   XBT_DEBUG("Create new parmap (%u workers)", num_workers);
 
   /* Initialize the thread pool data structure */
@@ -135,61 +118,24 @@ xbt_parmap_t xbt_parmap_new(unsigned int num_workers, e_xbt_parmap_mode_t mode)
   /* Create the pool of worker threads */
   xbt_parmap_thread_data_t data;
   parmap->workers[0] = NULL;
-#ifdef CORE_BINDING  
-  unsigned int core_bind = 0;
+#if HAVE_PTHREAD_SETAFFINITY
+  int core_bind = 0;
 #endif  
-  for (i = 1; i < num_workers; i++) {
+  for (unsigned int i = 1; i < num_workers; i++) {
     data = xbt_new0(s_xbt_parmap_thread_data_t, 1);
     data->parmap = parmap;
     data->worker_id = i;
-    parmap->workers[i] = xbt_os_thread_create(NULL, xbt_parmap_worker_main,
-                                              data, NULL);
-#ifdef CORE_BINDING  
+    parmap->workers[i] = xbt_os_thread_create(NULL, xbt_parmap_worker_main, data, NULL);
+#if HAVE_PTHREAD_SETAFFINITY
     xbt_os_thread_bind(parmap->workers[i], core_bind); 
-    if(core_bind!=xbt_os_get_numcores()){
+    if (core_bind != xbt_os_get_numcores())
       core_bind++;
-    } else {
+    else
       core_bind = 0; 
-    }
-#endif    
-  }
-  return parmap;
-}
-
-#ifdef HAVE_MC
-/**
- * \brief Creates a parallel map object
- * \param num_workers number of worker threads to create
- * \param mode how to synchronize the worker threads
- * \return the parmap created
- */
-xbt_parmap_t xbt_parmap_mc_new(unsigned int num_workers, e_xbt_parmap_mode_t mode)
-{
-  unsigned int i;
-
-  XBT_DEBUG("Create new parmap (%u workers)", num_workers);
-
-  /* Initialize the thread pool data structure */
-  xbt_parmap_t parmap = new s_xbt_parmap_t();
-  parmap->workers = xbt_new(xbt_os_thread_t, num_workers);
-
-  parmap->num_workers = num_workers;
-  parmap->status = XBT_PARMAP_WORK;
-  xbt_parmap_set_mode(parmap, mode);
-
-  /* Create the pool of worker threads */
-  xbt_parmap_thread_data_t data;
-  parmap->workers[0] = NULL;
-  for (i = 1; i < num_workers; i++) {
-    data = xbt_new0(s_xbt_parmap_thread_data_t, 1);
-    data->parmap = parmap;
-    data->worker_id = i;
-    parmap->workers[i] = xbt_os_thread_create(NULL, xbt_parmap_mc_worker_main,
-                                              data, NULL);
-  }
-  return parmap;
-}
 #endif
+  }
+  return parmap;
+}
 
 /**
  * \brief Destroys a parmap
@@ -225,7 +171,7 @@ void xbt_parmap_destroy(xbt_parmap_t parmap)
 static void xbt_parmap_set_mode(xbt_parmap_t parmap, e_xbt_parmap_mode_t mode)
 {
   if (mode == XBT_PARMAP_DEFAULT) {
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
     mode = XBT_PARMAP_FUTEX;
 #else
     mode = XBT_PARMAP_POSIX;
@@ -234,7 +180,6 @@ static void xbt_parmap_set_mode(xbt_parmap_t parmap, e_xbt_parmap_mode_t mode)
   parmap->mode = mode;
 
   switch (mode) {
-
     case XBT_PARMAP_POSIX:
       parmap->master_wait_f = xbt_parmap_posix_master_wait;
       parmap->worker_signal_f = xbt_parmap_posix_worker_signal;
@@ -246,10 +191,8 @@ static void xbt_parmap_set_mode(xbt_parmap_t parmap, e_xbt_parmap_mode_t mode)
       parmap->done_cond = xbt_os_cond_init();
       parmap->done_mutex = xbt_os_mutex_init();
       break;
-
-
     case XBT_PARMAP_FUTEX:
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
       parmap->master_wait_f = xbt_parmap_futex_master_wait;
       parmap->worker_signal_f = xbt_parmap_futex_worker_signal;
       parmap->master_signal_f = xbt_parmap_futex_master_signal;
@@ -263,9 +206,7 @@ static void xbt_parmap_set_mode(xbt_parmap_t parmap, e_xbt_parmap_mode_t mode)
 #else
       xbt_die("Futex is not available on this OS.");
 #endif
-
     case XBT_PARMAP_BUSY_WAIT:
-#ifndef _MSC_VER
       parmap->master_wait_f = xbt_parmap_busy_master_wait;
       parmap->worker_signal_f = xbt_parmap_busy_worker_signal;
       parmap->master_signal_f = xbt_parmap_busy_master_signal;
@@ -276,10 +217,6 @@ static void xbt_parmap_set_mode(xbt_parmap_t parmap, e_xbt_parmap_mode_t mode)
       xbt_os_cond_destroy(parmap->done_cond);
       xbt_os_mutex_destroy(parmap->done_mutex);
       break;
-#else
-      xbt_die("Busy waiting not implemented on Windows yet.");
-#endif
-
     case XBT_PARMAP_DEFAULT:
       THROW_IMPOSSIBLE;
       break;
@@ -323,8 +260,7 @@ void* xbt_parmap_next(xbt_parmap_t parmap)
 static void xbt_parmap_work(xbt_parmap_t parmap)
 {
   unsigned index;
-  while ((index = parmap->index++)
-         < xbt_dynar_length(parmap->data))
+  while ((index = parmap->index++) < xbt_dynar_length(parmap->data))
     parmap->fun(xbt_dynar_get_as(parmap->data, index, void*));
 }
 
@@ -346,14 +282,12 @@ static void *xbt_parmap_worker_main(void *arg)
   while (1) {
     parmap->worker_wait_f(parmap, ++round);
     if (parmap->status == XBT_PARMAP_WORK) {
-
       XBT_DEBUG("Worker %d got a job", data->worker_id);
 
       xbt_parmap_work(parmap);
       parmap->worker_signal_f(parmap);
 
       XBT_DEBUG("Worker %d has finished", data->worker_id);
-
     /* We are destroying the parmap */
     } else {
       SIMIX_context_free(context);
@@ -363,89 +297,7 @@ static void *xbt_parmap_worker_main(void *arg)
   }
 }
 
-#ifdef HAVE_MC
-
-/**
- * \brief Applies a list of tasks in parallel.
- * \param parmap a parallel map object
- * \param fun the function to call in parallel
- * \param data each element of this dynar will be passed as an argument to fun
- */
-int xbt_parmap_mc_apply(xbt_parmap_t parmap, int_f_pvoid_pvoid_t fun, 
-                         void* data, unsigned int length,  void* ref_snapshot)
-{
-  /* Assign resources to worker threads */
-  parmap->snapshot_compare = fun;
-  parmap->mc_data = data;
-  parmap->index = 0;
-  parmap->finish = -1;
-  parmap->length = length;
-  parmap->ref_snapshot = ref_snapshot;
-  parmap->master_signal_f(parmap);
-  xbt_parmap_mc_work(parmap, 0);
-  parmap->master_wait_f(parmap);
-  XBT_DEBUG("Job done");
-  return parmap->finish;
-}
-
-static void xbt_parmap_mc_work(xbt_parmap_t parmap, int worker_id)
-{
-  unsigned int data_size = (parmap->length / parmap->num_workers) +
-    ((parmap->length % parmap->num_workers) ? 1 :0);
-  void* start = (char*)parmap->mc_data + (data_size*worker_id*sizeof(void*));
-  void* end = MIN((char *)start + data_size* sizeof(void*), (char*)parmap->mc_data + parmap->length*sizeof(void*));
-  
-  //XBT_CRITICAL("Worker %d : %p -> %p (%d)", worker_id, start, end, data_size);
-
-  while ( start < end && parmap->finish == -1) {
-    //XBT_CRITICAL("Starting with %p", start);
-    int res = parmap->snapshot_compare(*(void**)start, parmap->ref_snapshot);
-    start = (char *)start + sizeof(start);
-    if (!res){
-    
-      parmap->finish = ((char*)start - (char*)parmap->mc_data) / sizeof(void*);
-      //XBT_CRITICAL("Find good one %p (%p)", start, parmap->mc_data);
-      break;
-    }
-  }
-}
-
-/**
- * \brief Main function of a worker thread.
- * \param arg the parmap
- */
-static void *xbt_parmap_mc_worker_main(void *arg)
-{
-  xbt_parmap_thread_data_t data = (xbt_parmap_thread_data_t) arg;
-  xbt_parmap_t parmap = data->parmap;
-  unsigned round = 0;
-  /* smx_context_t context = SIMIX_context_new(NULL, 0, NULL, NULL, NULL); */
-  /* SIMIX_context_set_current(context); */
-
-  XBT_DEBUG("New worker thread created");
-
-  /* Worker's main loop */
-  while (1) {
-    parmap->worker_wait_f(parmap, ++round);
-    if (parmap->status == XBT_PARMAP_WORK) {
-
-      XBT_DEBUG("Worker %d got a job", data->worker_id);
-
-      xbt_parmap_mc_work(parmap, data->worker_id);
-      parmap->worker_signal_f(parmap);
-
-      XBT_DEBUG("Worker %d has finished", data->worker_id);
-
-    /* We are destroying the parmap */
-    } else {
-      xbt_free(data);
-      return NULL;
-    }
-  }
-}
-#endif
-
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
 static void futex_wait(unsigned *uaddr, unsigned val)
 {
   XBT_VERB("Waiting on futex %p", uaddr);
@@ -479,8 +331,7 @@ static void xbt_parmap_posix_master_wait(xbt_parmap_t parmap)
 /**
  * \brief Ends the parmap: wakes the controller thread when all workers terminate.
  *
- * This function is called by all worker threads when they end (not including
- * the controller).
+ * This function is called by all worker threads when they end (not including the controller).
  *
  * \param parmap a parmap
  */
@@ -514,8 +365,7 @@ static void xbt_parmap_posix_master_signal(xbt_parmap_t parmap)
 /**
  * \brief Waits for some work to process.
  *
- * This function is called by each worker thread (not including the controller)
- * when it has no more work to do.
+ * This function is called by each worker thread (not including the controller) when it has no more work to do.
  *
  * \param parmap a parmap
  * \param round  the expected round number
@@ -530,7 +380,7 @@ static void xbt_parmap_posix_worker_wait(xbt_parmap_t parmap, unsigned round)
   xbt_os_mutex_release(parmap->ready_mutex);
 }
 
-#ifdef HAVE_FUTEX_H
+#if HAVE_FUTEX_H
 /**
  * \brief Starts the parmap: waits for all workers to be ready and returns.
  *
@@ -551,8 +401,7 @@ static void xbt_parmap_futex_master_wait(xbt_parmap_t parmap)
 /**
  * \brief Ends the parmap: wakes the controller thread when all workers terminate.
  *
- * This function is called by all worker threads when they end (not including
- * the controller).
+ * This function is called by all worker threads when they end (not including the controller).
  *
  * \param parmap a parmap
  */
@@ -583,8 +432,7 @@ static void xbt_parmap_futex_master_signal(xbt_parmap_t parmap)
 /**
  * \brief Waits for some work to process.
  *
- * This function is called by each worker thread (not including the controller)
- * when it has no more work to do.
+ * This function is called by each worker thread (not including the controller) when it has no more work to do.
  *
  * \param parmap a parmap
  * \param round  the expected round number
@@ -600,7 +448,6 @@ static void xbt_parmap_futex_worker_wait(xbt_parmap_t parmap, unsigned round)
 }
 #endif
 
-#ifndef _MSC_VER
 /**
  * \brief Starts the parmap: waits for all workers to be ready and returns.
  *
@@ -643,8 +490,7 @@ static void xbt_parmap_busy_master_signal(xbt_parmap_t parmap)
 /**
  * \brief Waits for some work to process.
  *
- * This function is called by each worker thread (not including the controller)
- * when it has no more work to do.
+ * This function is called by each worker thread (not including the controller) when it has no more work to do.
  *
  * \param parmap a parmap
  * \param round  the expected round number
@@ -656,4 +502,3 @@ static void xbt_parmap_busy_worker_wait(xbt_parmap_t parmap, unsigned round)
     xbt_os_thread_yield();
   }
 }
-#endif /* ! _MSC_VER */

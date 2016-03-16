@@ -1,4 +1,4 @@
-/*! \page platform Step 1: %Model the underlying platform
+/*! \page platform %Model the underlying platform
 
 @tableofcontents
 
@@ -339,6 +339,7 @@ sharing_policy  | no        | string | Sharing policy for the links between node
 bb_bw           | no        | int    | Bandwidth for backbone (if any). See <b>link</b> section for syntax/details. If bb_bw and bb_lat (see below) attributes are omitted, no backbone is created (alternative cluster architecture <b>described before</b>).
 bb_lat          | no        | int    | Latency for backbone (if any). See <b>link</b> section for syntax/details. If bb_lat and bb_bw (see above) attributes are omitted, no backbone is created (alternative cluster architecture <b>described before</b>).
 bb_sharing_policy | no      | string | Sharing policy for the backbone (if any). See <b>link</b> section for syntax/details.
+limiter_link      | no        | int    | Bandwidth for limiter link (if any). This adds a specific link for each node, to set the maximum bandwidth reached when communicating in both directions at the same time. In theory this value should be 2*bw for fullduplex links, but in reality this might be less. This value will depend heavily on the communication model, and on the cluster's hardware, so no default value can be set, this has to be measured. More details can be obtained in <a href="https://hal.inria.fr/hal-00919507/"> "Toward Better Simulation of MPI Applications on Ethernet/TCP Networks"</a>
 availability_file | no      | string | Allows you to use a file as input for availability. Similar to <b>hosts</b> attribute.
 state_file        | no      | string | Allows you to use a file as input for states.  Similar to <b>hosts</b> attribute.
 loopback_bw       | no      | int    | Bandwidth for loopback (if any). See <b>link</b> section for syntax/details. If loopback_bw and loopback_lat (see below) attributes are omitted, no loopback link is created and all intra-node communication will use the main network link of the node. Loopback link is a \ref pf_sharing_policy_fatpipe "\b FATPIPE".
@@ -1112,9 +1113,9 @@ routing model (the path is given relative to SimGrid's source directory)
 
 \verbinclude example_filelist_routing_dijkstra
 
-Dijsktra example :
+Dijkstra example :
 \verbatim
- <AS id="AS_2" routing="Dijsktra">
+ <AS id="AS_2" routing="Dijkstra">
      <host id="AS_2_host1" power="1000000000"/>
      <host id="AS_2_host2" power="1000000000"/>
      <host id="AS_2_host3" power="1000000000"/>
@@ -1135,9 +1136,9 @@ Dijsktra example :
 \anchor pf_routing_model_dijkstracache
 ### DijkstraCache ###
 
-DijsktraCache example:
+DijkstraCache example:
 \verbatim
-<AS id="AS_2" routing="DijsktraCache">
+<AS id="AS_2" routing="DijkstraCache">
      <host id="AS_2_host1" power="1000000000"/>
      ...
 (platform unchanged compared to upper example)
@@ -1300,7 +1301,7 @@ can only occur as a child of \ref pf_routing_tag_route "&lt;route/&gt;"
 | Attribute name  | Mandatory | Values | Description                                                   |
 | --------------- | --------- | ------ | -----------                                                   |
 | id              | yes       | String | The identifier of the link that should be added to the route. |
-| direction       | maybe     | UP\|DOWN | If the link referenced by \c id has been declared as \ref pf_sharing_policy_fullduplex "FULLDUPLEX", this indicates which direction the route traverses through this link: UP or DOWN. If you don't use FULLDUPLEX, this attribute has no effect.
+| direction       | maybe     | UP\|DOWN | If the link referenced by \c id has been declared as \ref pf_sharing_policy_fullduplex "FULLDUPLEX", this indicates which direction the route traverses through this link: UP or DOWN. If you don't use FULLDUPLEX, do not use this attribute or SimGrid will not find the right link.
 
 #### Example Files ####
 
@@ -1492,7 +1493,7 @@ then have to define some <b>route</b> to gives some topological
 information to SimGrid. Here is a file doing it all :
 
 \verbatim
-<AS  id="AS_Big"  routing="Dijsktra">
+<AS  id="AS_Big"  routing="Dijkstra">
   <AS id="AS_1" routing="Full">
      <host id="AS_1_host1" power="1000000000"/>
      <link id="AS_1_link" bandwidth="1250000000" latency="5E-4"/>
@@ -1529,10 +1530,8 @@ information to SimGrid. Here is a file doing it all :
 
 \section pf_other_tags Tags not (directly) describing the platform
 
-There are 3 tags, that you can use inside a \<platform\> tag that are
-not describing the platform:
-\li \ref pf_random "random": it allows you to define random generators you want to use
-    for your simulation.
+The following tags can be used inside a \<platform\> tag even if they are not
+directly describing the platform:
 \li \ref pf_config "config": it allows you to pass some configuration stuff like, for
     example, the network model and so on. It follows the
 \li \ref pf_include "include": allows you to include another file into the current one.
@@ -1574,28 +1573,30 @@ Tag name        | Description | Documentation
 ...
 \endverbatim
 
-
-\subsection pf_random random
-
-<b>This has not yet been implemented.</b>
-
 \subsection pf_include include
 
-The \c include tag allows you to import other platforms into your
+Even if it can be used in other contexts, this tag was originally created
+to be used with \ref pf_trace. The idea was to have a file describing the
+platform, and another file attaching traces of a given period to the platform.
+
+The drawback is that the file chuncks that will be included do not
+constitute valid XML files. This may explain why this feature was never really
+used in practice (as far as we know). Other mechanisms, such as the ability to load
+several platform files one after the other, could be considered in the future.
+
+In the meanwhile, the \c include tag allows you to import other platforms into your
 local file. This is done with the intention to help people
 combine their different AS and provide new platforms. Those files
 should contain XML that consists of 
 \ref pf_include "include", \ref pf_cluster "cluster", \ref pf_peer "peer", \ref pf_As "AS", \ref pf_trace "trace", \ref pf_trace "tags".
 
-\note
-    Due to some obscure technical reasons, you have to open
-    and close the tag in order to make it work.
+Do not forget to close the tag to make it work, or you will end up with an invalid XML file.
 
 #### Attributes ####
 
 | Attribute name  | Mandatory | Values                  | Description                                                                                                  |
 | --------------- | --------- | ----------------------  | -----------                                                                                                  |
-| file            | yes       | String                  | Filename of the path you want to include with either relative or absolute path. Syntax is defined by your OS |
+| file            | yes       | String                  | Filename of the path you want to include with either relative or absolute path. |
 
 
 #### Example ####
@@ -1606,7 +1607,7 @@ each of them will then be usable.
 
 \verbatim
 <?xml version='1.0'?>
-<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd">
 <platform version="4">
 	<AS id="main" routing="Full">
 		<include file="clusterA.xml"></include>
@@ -1709,8 +1710,7 @@ non-intuitive schema ... Something like that :
 <ASroute src="cl_4_1"
 	dst="cl_4_2"
 	gw_src="c_4_1-cl_4_1_router"
-	gw_dst="c_4_2-cl_4_2_router"
-	symmetrical="YES">
+	gw_dst="c_4_2-cl_4_2_router">
 		<link_ctn id="4_1"/>
 		<link_ctn id="bb_4"/>
 		<link_ctn id="4_2"/>
@@ -1718,16 +1718,14 @@ non-intuitive schema ... Something like that :
 <ASroute src="cl_4_1"
 	dst="exitAS_4"
 	gw_src="c_4_1-cl_4_1_router"
-	gw_dst="router_4"
-	symmetrical="YES">
+	gw_dst="router_4">
 		<link_ctn id="4_1"/>
 		<link_ctn id="bb_4"/>
 </ASroute>
 <ASroute src="cl_4_2"
 	dst="exitAS_4"
 	gw_src="c_4_2-cl_4_2_router"
-	gw_dst="router_4"
-	symmetrical="YES">
+	gw_dst="router_4">
 		<link_ctn id="4_2"/>
 		<link_ctn id="bb_4"/>
 </ASroute>
@@ -1822,7 +1820,7 @@ characteristics (lookup : time to resolve a route):
 \li <b>Cluster</b>: Cluster routing, specific to cluster tag, should
     not be used.
 
-\subsection pf_switch Hey, I want to describe a switch but there is no switch tag !
+\subsection pf_switch I want to describe a switch but there is no switch tag !
 
 Actually we did not include switch tag, ok. But when you're trying to
 simulate a switch, the only major impact it has when you're using
@@ -1863,7 +1861,7 @@ id="3"/&gt;&lt;/route&gt;), without trying to build new routes by aggregating
 the provided ones.
 
 You are also free to declare platform where the routing is not
-symmetric. For example, add the following to the previous file:
+symmetrical. For example, add the following to the previous file:
 
 \verbatim
 <route src="C" dst="A">
@@ -1877,90 +1875,5 @@ to C go directly. Don't worry about realism of such settings since
 we've seen ways more weird situation in real settings (in fact, that's
 the realism of very regular platforms which is questionable, but
 that's another story).
-
-\section pf_flexml_bypassing Bypassing the XML parser with your own C functions
-<b>NOTE THAT THIS DOCUMENTATION, WHILE STILL WORKING, IS STRONGLY DEPRECATED</b>
-
-So you want to bypass the XML files parser, uh? Maybe doing some parameter
-sweep experiments on your simulations or so? This is possible, and
-it's not even really difficult (well. Such a brutal idea could be
-harder to implement). Here is how it goes.
-
-For this, you have to first remember that the XML parsing in SimGrid is done
-using a tool called FleXML. Given a DTD, this gives a flex-based parser. If
-you want to bypass the parser, you need to provide some code mimicking what
-it does and replacing it in its interactions with the SURF code. So, let's
-have a look at these interactions.
-
-FleXML parser are close to classical SAX parsers. It means that a
-well-formed SimGrid platform XML file might result in the following
-"events":
-
-  - start "platform_description" with attribute version="4"
-  - start "host" with attributes id="host1" power="1.0"
-  - end "host"
-  - start "host" with attributes id="host2" power="2.0"
-  - end "host"
-  - start "link" with ...
-  - end "link"
-  - start "route" with ...
-  - start "link_ctn" with ...
-  - end "link_ctn"
-  - end "route"
-  - end "platform_description"
-
-The communication from the parser to the SURF code uses two means:
-Attributes get copied into some global variables, and a surf-provided
-function gets called by the parser for each event. For example, the event
-  - start "host" with attributes id="host1" power="1.0"
-
-let the parser do something roughly equivalent to:
-\verbatim
-  strcpy(A_host_id,"host1");
-  A_host_power = 1.0;
-  STag_host();
-\endverbatim
-
-In SURF, we attach callbacks to the different events by initializing the
-pointer functions to some the right surf functions. Since there can be
-more than one callback attached to the same event (if more than one
-model is in use, for example), they are stored in a dynar. Example in
-host_ptask_L07.c:
-\verbatim
-  /* Adding callback functions */
-  surf_parse_reset_parser();
-  surfxml_add_callback(STag_surfxml_host_cb_list, &parse_cpu_init);
-  surfxml_add_callback(STag_surfxml_prop_cb_list, &parse_properties);
-  surfxml_add_callback(STag_surfxml_link_cb_list, &parse_link_init);
-  surfxml_add_callback(STag_surfxml_route_cb_list, &parse_route_set_endpoints);
-  surfxml_add_callback(ETag_surfxml_link_c_ctn_cb_list, &parse_route_elem);
-  surfxml_add_callback(ETag_surfxml_route_cb_list, &parse_route_set_route);
-
-  /* Parse the file */
-  surf_parse_open(file);
-  xbt_assert(!surf_parse(), "Parse error in %s", file);
-  surf_parse_close();
-\endverbatim
-
-So, to bypass the FleXML parser, you need to write your own version of the
-surf_parse function, which should do the following:
-   - Fill the A_<tag>_<attribute> variables with the wanted values
-   - Call the corresponding STag_<tag>_fun function to simulate tag start
-   - Call the corresponding ETag_<tag>_fun function to simulate tag end
-   - (do the same for the next set of values, and loop)
-
-Then, tell SimGrid that you want to use your own "parser" instead of the stock one:
-\verbatim
-  surf_parse = surf_parse_bypass_environment;
-  MSG_create_environment(NULL);
-  surf_parse = surf_parse_bypass_application;
-  MSG_launch_application(NULL);
-\endverbatim
-
-A set of macros are provided at the end of
-include/surf/surfxml_parse.h to ease the writing of the bypass
-functions. An example of this trick is distributed in the file
-examples/msg/masterslave/masterslave_bypass.c
-
 
 */

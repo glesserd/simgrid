@@ -16,9 +16,11 @@
 #include <utility>
 #include <functional>
 
-#include <xbt/log.h>
-#include <xbt/parmap.h>
-#include <xbt/dynar.h>
+#include "src/internal_config.h" 
+
+#include "xbt/log.h"
+#include "xbt/parmap.h"
+#include "xbt/dynar.h"
 
 #include "smx_private.h"
 #include "smx_private.hpp"
@@ -72,8 +74,7 @@ private:
 
 ContextFactory* raw_factory()
 {
-  XBT_VERB("Using raw contexts. "
-    "Because the glibc is just not good enough for us.");
+  XBT_VERB("Using raw contexts. Because the glibc is just not good enough for us.");
   return new RawContextFactory();
 }
 
@@ -82,10 +83,10 @@ ContextFactory* raw_factory()
 
 // ***** Loads of static stuff
 
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
 static xbt_parmap_t raw_parmap;
 static simgrid::simix::RawContext** raw_workers_context;    /* space to save the worker context in each thread */
-static unsigned long raw_threads_working;     /* number of threads that have started their work */
+static uintptr_t raw_threads_working;     /* number of threads that have started their work */
 static xbt_os_thread_key_t raw_worker_id_key; /* thread-specific storage for the thread id */
 #endif
 #ifdef ADAPTIVE_THRESHOLD
@@ -122,13 +123,13 @@ extern "C" raw_stack_t raw_makecontext(void* malloced_stack, int stack_size,
                                    rawctx_entry_point_t entry_point, void* arg);
 extern "C" void raw_swapcontext(raw_stack_t* old, raw_stack_t new_context);
 
-#if PROCESSOR_x86_64
+#if SIMGRID_PROCESSOR_x86_64
 __asm__ (
-#if defined(APPLE)
+#if defined(__APPLE__)
    ".text\n"
    ".globl _raw_makecontext\n"
    "_raw_makecontext:\n"
-#elif defined(_XBT_WIN32)
+#elif defined(_WIN32)
    ".text\n"
    ".globl raw_makecontext\n"
    "raw_makecontext:\n"
@@ -160,11 +161,11 @@ __asm__ (
 );
 
 __asm__ (
-#if defined(APPLE)
+#if defined(__APPLE__)
    ".text\n"
    ".globl _raw_swapcontext\n"
    "_raw_swapcontext:\n"
-#elif defined(_XBT_WIN32)
+#elif defined(_WIN32)
    ".text\n"
    ".globl raw_swapcontext\n"
    "raw_swapcontext:\n"
@@ -202,9 +203,9 @@ __asm__ (
    "   pop %rdi\n"
    "   ret\n"
 );
-#elif PROCESSOR_i686
+#elif SIMGRID_PROCESSOR_i686
 __asm__ (
-#if defined(APPLE) || defined(_XBT_WIN32)
+#if defined(__APPLE__) || defined(_WIN32)
    ".text\n"
    ".globl _raw_makecontext\n"
    "_raw_makecontext:\n"
@@ -231,7 +232,7 @@ __asm__ (
 );
 
 __asm__ (
-#if defined(APPLE) || defined(_XBT_WIN32)
+#if defined(__APPLE__) || defined(_WIN32)
    ".text\n"
    ".globl _raw_swapcontext\n"
    "_raw_swapcontext:\n"
@@ -285,7 +286,7 @@ RawContextFactory::RawContextFactory()
 #endif
   raw_context_parallel = SIMIX_context_is_parallel();
   if (raw_context_parallel) {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
     int nthreads = SIMIX_context_get_nthreads();
     xbt_os_thread_key_create(&raw_worker_id_key);
     // TODO, lazily init
@@ -304,7 +305,7 @@ RawContextFactory::RawContextFactory()
 
 RawContextFactory::~RawContextFactory()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   if (raw_parmap)
     xbt_parmap_destroy(raw_parmap);
   xbt_free(raw_workers_context);
@@ -379,7 +380,7 @@ void RawContextFactory::run_all_serial()
 
 void RawContextFactory::run_all_parallel()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   raw_threads_working = 0;
   if (raw_parmap == nullptr)
     raw_parmap = xbt_parmap_new(
@@ -427,7 +428,7 @@ void RawContext::suspend_serial()
 
 void RawContext::suspend_parallel()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   /* determine the next context */
   smx_process_t next_work = (smx_process_t) xbt_parmap_next(raw_parmap);
   RawContext* next_context = nullptr;
@@ -440,10 +441,10 @@ void RawContext::suspend_parallel()
   else {
     /* all processes were run, go to the barrier */
     XBT_DEBUG("No more processes to run");
-    unsigned long worker_id = (unsigned long)(uintptr_t)
+    uintptr_t worker_id = (uintptr_t)
       xbt_os_thread_get_specific(raw_worker_id_key);
     next_context = (RawContext*) raw_workers_context[worker_id];
-    XBT_DEBUG("Restoring worker stack %lu (working threads = %lu)",
+    XBT_DEBUG("Restoring worker stack %zu (working threads = %zu)",
         worker_id, raw_threads_working);
   }
 
@@ -468,12 +469,12 @@ void RawContext::resume_serial()
 
 void RawContext::resume_parallel()
 {
-#ifdef HAVE_THREAD_CONTEXTS
-  unsigned long worker_id = __sync_fetch_and_add(&raw_threads_working, 1);
-  xbt_os_thread_set_specific(raw_worker_id_key, (void*)(uintptr_t) worker_id);
+#if HAVE_THREAD_CONTEXTS
+  uintptr_t worker_id = __sync_fetch_and_add(&raw_threads_working, 1);
+  xbt_os_thread_set_specific(raw_worker_id_key, (void*) worker_id);
   RawContext* worker_context = (RawContext*) SIMIX_context_self();
   raw_workers_context[worker_id] = worker_context;
-  XBT_DEBUG("Saving worker stack %lu", worker_id);
+  XBT_DEBUG("Saving worker stack %zu", worker_id);
   SIMIX_context_set_current(this);
   raw_swapcontext(&worker_context->stack_top_, this->stack_top_);
 #else

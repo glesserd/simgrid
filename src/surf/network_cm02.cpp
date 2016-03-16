@@ -9,7 +9,7 @@
 #include "network_cm02.hpp"
 #include "maxmin_private.hpp"
 #include "simgrid/sg_config.h"
-#include "src/surf/platform.hpp"
+#include "src/instr/instr_private.h" // TRACE_is_enabled(). FIXME: remove by subscribing tracing to the surf signals
 
 XBT_LOG_EXTERNAL_DEFAULT_CATEGORY(surf_network);
 
@@ -20,20 +20,6 @@ double sg_weight_S_parameter = 0.0;     /* default value; can be set by model or
 
 double sg_tcp_gamma = 0.0;
 int sg_network_crosstraffic = 0;
-
-/*************
- * CallBacks *
- *************/
-
-void net_define_callbacks(void)
-{
-  /* Figuring out the network links */
-  simgrid::surf::on_link.connect(netlink_parse_init);
-}
-
-/*********
- * Model *
- *********/
 
 /************************************************************************/
 /* New model based on optimizations discussed during Pedro Velho's thesis*/
@@ -54,16 +40,13 @@ void surf_network_model_init_LegrandVelho(void)
   if (surf_network_model)
     return;
 
+  simgrid::surf::on_link.connect(netlink_parse_init);
   surf_network_model = new simgrid::surf::NetworkCm02Model();
-  net_define_callbacks();
-  simgrid::surf::Model *model = surf_network_model;
-  xbt_dynar_push(all_existing_models, &model);
+  xbt_dynar_push(all_existing_models, &surf_network_model);
 
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",
-                            13.01);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor",
-                            0.97);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S", 20537);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",      13.01);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor",     0.97);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S",         20537);
 }
 
 /***************************************************************************/
@@ -83,13 +66,13 @@ void surf_network_model_init_CM02(void)
   if (surf_network_model)
     return;
 
+  simgrid::surf::on_link.connect(netlink_parse_init);
   surf_network_model = new simgrid::surf::NetworkCm02Model();
   xbt_dynar_push(all_existing_models, &surf_network_model);
-  net_define_callbacks();
 
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor", 1.0);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",   1.0);
   xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor", 1.0);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S", 0.0);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S",         0.0);
 }
 
 /***************************************************************************/
@@ -107,15 +90,16 @@ void surf_network_model_init_Reno(void)
   if (surf_network_model)
     return;
 
+  simgrid::surf::on_link.connect(netlink_parse_init);
   surf_network_model = new simgrid::surf::NetworkCm02Model();
   xbt_dynar_push(all_existing_models, &surf_network_model);
-  net_define_callbacks();
+
   lmm_set_default_protocol_function(func_reno_f, func_reno_fp, func_reno_fpi);
   surf_network_model->f_networkSolve = lagrange_solve;
 
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor", 10.4);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor", 0.92);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S", 8775);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",     10.4);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor",    0.92);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S",         8775);
 }
 
 
@@ -124,15 +108,16 @@ void surf_network_model_init_Reno2(void)
   if (surf_network_model)
     return;
 
+  simgrid::surf::on_link.connect(netlink_parse_init);
   surf_network_model = new simgrid::surf::NetworkCm02Model();
   xbt_dynar_push(all_existing_models, &surf_network_model);
-  net_define_callbacks();
+
   lmm_set_default_protocol_function(func_reno2_f, func_reno2_fp, func_reno2_fpi);
   surf_network_model->f_networkSolve = lagrange_solve;
 
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor", 10.4);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor", 0.92);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S", 8775);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",    10.4);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor",   0.92);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S",        8775);
 }
 
 void surf_network_model_init_Vegas(void)
@@ -140,15 +125,16 @@ void surf_network_model_init_Vegas(void)
   if (surf_network_model)
     return;
 
+  simgrid::surf::on_link.connect(netlink_parse_init);
   surf_network_model = new simgrid::surf::NetworkCm02Model();
   xbt_dynar_push(all_existing_models, &surf_network_model);
-  net_define_callbacks();
+
   lmm_set_default_protocol_function(func_vegas_f, func_vegas_fp, func_vegas_fpi);
   surf_network_model->f_networkSolve = lagrange_solve;
 
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor", 10.4);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor", 0.92);
-  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S", 8775);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/latency_factor",    10.4);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/bandwidth_factor",   0.92);
+  xbt_cfg_setdefault_double(_sg_cfg_set, "network/weight_S",        8775);
 }
 
 namespace simgrid {
@@ -158,53 +144,38 @@ NetworkCm02Model::NetworkCm02Model()
   :NetworkModel()
 {
   char *optim = xbt_cfg_get_string(_sg_cfg_set, "network/optim");
-  int select =
-      xbt_cfg_get_boolean(_sg_cfg_set, "network/maxmin_selective_update");
+  int select = xbt_cfg_get_boolean(_sg_cfg_set, "network/maxmin_selective_update");
 
   if (!strcmp(optim, "Full")) {
-    p_updateMechanism = UM_FULL;
-    m_selectiveUpdate = select;
+    updateMechanism_ = UM_FULL;
+    selectiveUpdate_ = select;
   } else if (!strcmp(optim, "Lazy")) {
-    p_updateMechanism = UM_LAZY;
-    m_selectiveUpdate = 1;
+    updateMechanism_ = UM_LAZY;
+    selectiveUpdate_ = 1;
     xbt_assert((select == 1) || (xbt_cfg_is_default_value(_sg_cfg_set, "network/maxmin_selective_update")),
                "Disabling selective update while using the lazy update mechanism is dumb!");
   } else {
     xbt_die("Unsupported optimization (%s) for this model", optim);
   }
 
-  if (!p_maxminSystem)
-  p_maxminSystem = lmm_system_new(m_selectiveUpdate);
+  if (!maxminSystem_)
+    maxminSystem_ = lmm_system_new(selectiveUpdate_);
 
-  routing_model_create(createLink("__loopback__",
-                                498000000, NULL, 0.000015, NULL,
-                                1 /*SURF_RESOURCE_ON*/, NULL,
-                                SURF_LINK_FATPIPE, NULL));
+  routing_model_create(createLink("__loopback__", 498000000, 0.000015, SURF_LINK_FATPIPE, NULL));
 
-  if (p_updateMechanism == UM_LAZY) {
-  p_actionHeap = xbt_heap_new(8, NULL);
-  xbt_heap_set_update_callback(p_actionHeap, surf_action_lmm_update_index_heap);
-  p_modifiedSet = new ActionLmmList();
-  p_maxminSystem->keep_track = p_modifiedSet;
+  if (updateMechanism_ == UM_LAZY) {
+  actionHeap_ = xbt_heap_new(8, NULL);
+  xbt_heap_set_update_callback(actionHeap_, surf_action_lmm_update_index_heap);
+  modifiedSet_ = new ActionLmmList();
+  maxminSystem_->keep_track = modifiedSet_;
   }
 }
 
-Link* NetworkCm02Model::createLink(const char *name,
-                                 double bw_initial,
-                                 tmgr_trace_t bw_trace,
-                                 double lat_initial,
-                                 tmgr_trace_t lat_trace,
-                                 int initiallyOn,
-                                 tmgr_trace_t state_trace,
-                                 e_surf_link_sharing_policy_t policy,
-                                 xbt_dict_t properties)
+Link* NetworkCm02Model::createLink(const char *name, double bandwidth, double latency, e_surf_link_sharing_policy_t policy, xbt_dict_t properties)
 {
-  xbt_assert(NULL == Link::byName(name),
-             "Link '%s' declared several times in the platform",
-             name);
+  xbt_assert(NULL == Link::byName(name), "Link '%s' declared several times in the platform", name);
 
-  Link* link = new NetworkCm02Link(this, name, properties, p_maxminSystem, sg_bandwidth_factor * bw_initial,
-                     initiallyOn, state_trace, bw_initial, bw_trace, lat_initial, lat_trace, policy);
+  Link* link = new NetworkCm02Link(this, name, properties, maxminSystem_, sg_bandwidth_factor * bandwidth, bandwidth, latency, policy);
   Link::onCreation(link);
   return link;
 }
@@ -212,22 +183,20 @@ Link* NetworkCm02Model::createLink(const char *name,
 void NetworkCm02Model::updateActionsStateLazy(double now, double /*delta*/)
 {
   NetworkCm02Action *action;
-  while ((xbt_heap_size(p_actionHeap) > 0)
-         && (double_equals(xbt_heap_maxkey(p_actionHeap), now, sg_surf_precision))) {
-    action = static_cast<NetworkCm02Action*> (xbt_heap_pop(p_actionHeap));
+  while ((xbt_heap_size(actionHeap_) > 0)
+         && (double_equals(xbt_heap_maxkey(actionHeap_), now, sg_surf_precision))) {
+    action = static_cast<NetworkCm02Action*> (xbt_heap_pop(actionHeap_));
     XBT_DEBUG("Something happened to action %p", action);
     if (TRACE_is_enabled()) {
-      int n = lmm_get_number_of_cnst_from_var(p_maxminSystem, action->getVariable());
-      int i;
-      for (i = 0; i < n; i++){
-        lmm_constraint_t constraint = lmm_get_cnst_from_var(p_maxminSystem,
-                                                            action->getVariable(),
-                                                            i);
+      int n = lmm_get_number_of_cnst_from_var(maxminSystem_, action->getVariable());
+
+      for (int i = 0; i < n; i++){
+        lmm_constraint_t constraint = lmm_get_cnst_from_var(maxminSystem_, action->getVariable(), i);
         NetworkCm02Link *link = static_cast<NetworkCm02Link*>(lmm_constraint_id(constraint));
         TRACE_surf_link_set_utilization(link->getName(),
                                         action->getCategory(),
                                         (lmm_variable_getvalue(action->getVariable())*
-                                            lmm_get_cnst_weight_from_var(p_maxminSystem,
+                                            lmm_get_cnst_weight_from_var(maxminSystem_,
                                                 action->getVariable(),
                                                 i)),
                                         action->getLastUpdate(),
@@ -238,8 +207,8 @@ void NetworkCm02Model::updateActionsStateLazy(double now, double /*delta*/)
     // if I am wearing a latency hat
     if (action->getHat() == LATENCY) {
       XBT_DEBUG("Latency paid for action %p. Activating", action);
-      lmm_update_variable_weight(p_maxminSystem, action->getVariable(), action->m_weight);
-      action->heapRemove(p_actionHeap);
+      lmm_update_variable_weight(maxminSystem_, action->getVariable(), action->m_weight);
+      action->heapRemove(actionHeap_);
       action->refreshLastUpdate();
 
         // if I am wearing a max_duration or normal hat
@@ -251,7 +220,7 @@ void NetworkCm02Model::updateActionsStateLazy(double now, double /*delta*/)
       action->setRemains(0);
       action->finish();
       action->setState(SURF_ACTION_DONE);
-      action->heapRemove(p_actionHeap);
+      action->heapRemove(actionHeap_);
 
       action->gapRemove();
     }
@@ -281,29 +250,26 @@ void NetworkCm02Model::updateActionsStateFull(double now, double delta)
           action->m_latency = 0.0;
         }
         if (action->m_latency == 0.0 && !(action->isSuspended()))
-          lmm_update_variable_weight(p_maxminSystem, action->getVariable(),
+          lmm_update_variable_weight(maxminSystem_, action->getVariable(),
               action->m_weight);
       }
       if (TRACE_is_enabled()) {
-        int n = lmm_get_number_of_cnst_from_var(p_maxminSystem, action->getVariable());
-        int i;
-        for (i = 0; i < n; i++){
-          lmm_constraint_t constraint = lmm_get_cnst_from_var(p_maxminSystem,
-                                                            action->getVariable(),
-                                                            i);
+        int n = lmm_get_number_of_cnst_from_var(maxminSystem_, action->getVariable());
+        for (int i = 0; i < n; i++){
+          lmm_constraint_t constraint = lmm_get_cnst_from_var(maxminSystem_, action->getVariable(), i);
+
           NetworkCm02Link* link = static_cast<NetworkCm02Link*>(lmm_constraint_id(constraint));
           TRACE_surf_link_set_utilization(link->getName(),
                                         action->getCategory(),
                                         (lmm_variable_getvalue(action->getVariable())*
-                                            lmm_get_cnst_weight_from_var(p_maxminSystem,
+                                            lmm_get_cnst_weight_from_var(maxminSystem_,
                                                 action->getVariable(),
                                                 i)),
                                         action->getLastUpdate(),
                                         now - action->getLastUpdate());
         }
       }
-      if (!lmm_get_number_of_cnst_from_var
-          (p_maxminSystem, action->getVariable())) {
+      if (!lmm_get_number_of_cnst_from_var (maxminSystem_, action->getVariable())) {
         /* There is actually no link used, hence an infinite bandwidth.
          * This happens often when using models like vivaldi.
          * In such case, just make sure that the action completes immediately.
@@ -327,127 +293,101 @@ void NetworkCm02Model::updateActionsStateFull(double now, double delta)
       action->gapRemove();
     }
   }
-  return;
 }
 
-Action *NetworkCm02Model::communicate(NetCard *src, NetCard *dst,
-                                                double size, double rate)
+Action *NetworkCm02Model::communicate(NetCard *src, NetCard *dst, double size, double rate)
 {
-  unsigned int i;
-  void *_link;
-  NetworkCm02Link *link;
   int failed = 0;
-  NetworkCm02Action *action = NULL;
   double bandwidth_bound;
   double latency = 0.0;
-  xbt_dynar_t back_route = NULL;
+  std::vector<Link*> * back_route = NULL;
   int constraints_per_variable = 0;
 
-  xbt_dynar_t route = xbt_dynar_new(sizeof(NetCard*), NULL);
+  std::vector<Link*> *route = new std::vector<Link*>();
 
-  XBT_IN("(%s,%s,%g,%g)", src->getName(), dst->getName(), size, rate);
+  XBT_IN("(%s,%s,%g,%g)", src->name(), dst->name(), size, rate);
 
-  routing_platf->getRouteAndLatency(src, dst, &route, &latency);
-  xbt_assert(!xbt_dynar_is_empty(route) || latency,
+  routing_platf->getRouteAndLatency(src, dst, route, &latency);
+  xbt_assert(! route->empty() || latency,
              "You're trying to send data from %s to %s but there is no connecting path between these two hosts.",
-             src->getName(), dst->getName());
+             src->name(), dst->name());
 
-  xbt_dynar_foreach(route, i, _link) {
-  link = static_cast<NetworkCm02Link*>(_link);
-    if (link->isOff()) {
+  for (auto link: *route)
+    if (link->isOff())
       failed = 1;
-      break;
-    }
-  }
+
   if (sg_network_crosstraffic == 1) {
-    routing_platf->getRouteAndLatency(dst, src, &back_route, NULL);
-    xbt_dynar_foreach(back_route, i, _link) {
-      link = static_cast<NetworkCm02Link*>(_link);
-      if (link->isOff()) {
+    back_route = new std::vector<Link*>();
+    routing_platf->getRouteAndLatency(dst, src, back_route, NULL);
+    for (auto link: *back_route)
+      if (link->isOff())
         failed = 1;
-        break;
-      }
-    }
   }
 
-  action = new NetworkCm02Action(this, size, failed);
-
-#ifdef HAVE_LATENCY_BOUND_TRACKING
-  action->m_latencyLimited = 0;
-#endif
+  NetworkCm02Action *action = new NetworkCm02Action(this, size, failed);
   action->m_weight = action->m_latency = latency;
 
   action->m_rate = rate;
-  if (p_updateMechanism == UM_LAZY) {
+  if (updateMechanism_ == UM_LAZY) {
     action->m_indexHeap = -1;
     action->m_lastUpdate = surf_get_clock();
   }
 
   bandwidth_bound = -1.0;
-  if (sg_weight_S_parameter > 0) {
-    xbt_dynar_foreach(route, i, _link) {
-      link = static_cast<NetworkCm02Link*>(_link);
+  if (sg_weight_S_parameter > 0)
+    for (auto link : *route)
       action->m_weight += sg_weight_S_parameter / link->getBandwidth();
-    }
-  }
-  xbt_dynar_foreach(route, i, _link) {
-  link = static_cast<NetworkCm02Link*>(_link);
+
+  for (auto link : *route) {
     double bb = bandwidthFactor(size) * link->getBandwidth();
-    bandwidth_bound =
-        (bandwidth_bound < 0.0) ? bb : std::min(bandwidth_bound, bb);
+    bandwidth_bound = (bandwidth_bound < 0.0) ? bb : std::min(bandwidth_bound, bb);
   }
 
   action->m_latCurrent = action->m_latency;
   action->m_latency *= latencyFactor(size);
   action->m_rate = bandwidthConstraint(action->m_rate, bandwidth_bound, size);
   if (m_haveGap) {
-    xbt_assert(!xbt_dynar_is_empty(route),
+    xbt_assert(! route->empty(),
                "Using a model with a gap (e.g., SMPI) with a platform without links (e.g. vivaldi)!!!");
 
-    link = *static_cast<NetworkCm02Link **>(xbt_dynar_get_ptr(route, 0));
-    gapAppend(size, link, action);
-    XBT_DEBUG("Comm %p: %s -> %s gap=%f (lat=%f)",
-              action, src->getName(), dst->getName(), action->m_senderGap,
-              action->m_latency);
+    gapAppend(size, route->at(0), action);
+    XBT_DEBUG("Comm %p: %s -> %s gap=%f (lat=%f)", action, src->name(), dst->name(), action->m_senderGap, action->m_latency);
   }
 
-  constraints_per_variable = xbt_dynar_length(route);
+  constraints_per_variable = route->size();
   if (back_route != NULL)
-    constraints_per_variable += xbt_dynar_length(back_route);
+    constraints_per_variable += back_route->size();
 
   if (action->m_latency > 0) {
-    action->p_variable = lmm_variable_new(p_maxminSystem, action, 0.0, -1.0,
-                         constraints_per_variable);
-    if (p_updateMechanism == UM_LAZY) {
+    action->p_variable = lmm_variable_new(maxminSystem_, action, 0.0, -1.0, constraints_per_variable);
+    if (updateMechanism_ == UM_LAZY) {
       // add to the heap the event when the latency is payed
-      XBT_DEBUG("Added action (%p) one latency event at date %f", action,
-                action->m_latency + action->m_lastUpdate);
-      action->heapInsert(p_actionHeap, action->m_latency + action->m_lastUpdate, xbt_dynar_is_empty(route) ? NORMAL : LATENCY);
+      XBT_DEBUG("Added action (%p) one latency event at date %f", action, action->m_latency + action->m_lastUpdate);
+      action->heapInsert(actionHeap_, action->m_latency + action->m_lastUpdate, route->empty() ? NORMAL : LATENCY);
     }
   } else
-    action->p_variable = lmm_variable_new(p_maxminSystem, action, 1.0, -1.0, constraints_per_variable);
+    action->p_variable = lmm_variable_new(maxminSystem_, action, 1.0, -1.0, constraints_per_variable);
 
   if (action->m_rate < 0) {
-    lmm_update_variable_bound(p_maxminSystem, action->getVariable(), (action->m_latCurrent > 0) ? sg_tcp_gamma / (2.0 * action->m_latCurrent) : -1.0);
+    lmm_update_variable_bound(maxminSystem_, action->getVariable(), (action->m_latCurrent > 0) ? sg_tcp_gamma / (2.0 * action->m_latCurrent) : -1.0);
   } else {
-    lmm_update_variable_bound(p_maxminSystem, action->getVariable(), (action->m_latCurrent > 0) ? std::min(action->m_rate, sg_tcp_gamma / (2.0 * action->m_latCurrent)) : action->m_rate);
+    lmm_update_variable_bound(maxminSystem_, action->getVariable(), (action->m_latCurrent > 0) ? std::min(action->m_rate, sg_tcp_gamma / (2.0 * action->m_latCurrent)) : action->m_rate);
   }
 
-  xbt_dynar_foreach(route, i, _link) {
-  link = static_cast<NetworkCm02Link*>(_link);
-    lmm_expand(p_maxminSystem, link->getConstraint(), action->getVariable(), 1.0);
-  }
+  for (auto link: *route)
+    lmm_expand(maxminSystem_, link->getConstraint(), action->getVariable(), 1.0);
 
   if (sg_network_crosstraffic == 1) {
     XBT_DEBUG("Fullduplex active adding backward flow using 5%%");
-    xbt_dynar_foreach(back_route, i, _link) {
-      link = static_cast<NetworkCm02Link*>(_link);
-      lmm_expand(p_maxminSystem, link->getConstraint(), action->getVariable(), .05);
-    }
-    lmm_variable_concurrency_share_set(action->getVariable(),2);
+    for (auto link : *back_route)
+      lmm_expand(maxminSystem_, link->getConstraint(), action->getVariable(), .05);
+     
+    //Change concurrency_share here, if you want that cross-traffic is included in the SURF concurrency
+    //(You would also have to change lmm_element_concurrency())
+    //lmm_variable_concurrency_share_set(action->getVariable(),2);
   }
 
-  xbt_dynar_free(&route);
+  delete route;
   XBT_OUT();
 
   networkCommunicateCallbacks(action, src, dst, size, rate);
@@ -458,33 +398,20 @@ Action *NetworkCm02Model::communicate(NetCard *src, NetCard *dst,
  * Resource *
  ************/
 NetworkCm02Link::NetworkCm02Link(NetworkCm02Model *model, const char *name, xbt_dict_t props,
-                             lmm_system_t system,
-                             double constraint_value,
-                             int initiallyOn, tmgr_trace_t state_trace,
-                             double bw_peak, tmgr_trace_t bw_trace,
-                             double lat_initial, tmgr_trace_t lat_trace,
-                             e_surf_link_sharing_policy_t policy)
-: Link(model, name, props, lmm_constraint_new(system, this, constraint_value), state_trace)
+    lmm_system_t system,
+    double constraint_value,
+    double bw_peak,  double lat_initial,
+    e_surf_link_sharing_policy_t policy)
+: Link(model, name, props, lmm_constraint_new(system, this, constraint_value))
 {
-  if (initiallyOn)
-    turnOn();
-  else
-    turnOff();
-
   m_bandwidth.scale = 1.0;
   m_bandwidth.peak = bw_peak;
-  if (bw_trace)
-    m_bandwidth.event = future_evt_set->add_trace(bw_trace, 0.0, this);
-  else
-    m_bandwidth.event = NULL;
 
   m_latency.scale = 1.0;
   m_latency.peak = lat_initial;
-  if (lat_trace)
-    m_latency.event = future_evt_set->add_trace(lat_trace, 0.0, this);
 
   if (policy == SURF_LINK_FATPIPE)
-  lmm_constraint_shared(getConstraint());
+    lmm_constraint_shared(getConstraint());
 }
 
 
@@ -525,30 +452,26 @@ void NetworkCm02Link::apply_event(tmgr_trace_iterator_t triggered, double value)
     xbt_die("Unknown event!\n");
   }
 
-  XBT_DEBUG
-      ("There was a resource state event, need to update actions related to the constraint (%p)",
+  XBT_DEBUG("There was a resource state event, need to update actions related to the constraint (%p)",
        getConstraint());
 }
 
 void NetworkCm02Link::updateBandwidth(double value) {
-  double delta = sg_weight_S_parameter / value - sg_weight_S_parameter /
-                 (m_bandwidth.peak * m_bandwidth.scale);
-  lmm_variable_t var = NULL;
-  lmm_element_t elem = NULL;
-  lmm_element_t nextelem = NULL;
-  int numelem = 0;
-
-  NetworkCm02Action *action = NULL;
 
   m_bandwidth.peak = value;
-  lmm_update_constraint_bound(getModel()->getMaxminSystem(),
-                              getConstraint(),
-                              sg_bandwidth_factor *
-                              (m_bandwidth.peak * m_bandwidth.scale));
+
+  lmm_update_constraint_bound(getModel()->getMaxminSystem(), getConstraint(),
+      sg_bandwidth_factor * (m_bandwidth.peak * m_bandwidth.scale));
   TRACE_surf_link_set_bandwidth(surf_get_clock(), getName(), sg_bandwidth_factor * m_bandwidth.peak * m_bandwidth.scale);
+
   if (sg_weight_S_parameter > 0) {
+    double delta = sg_weight_S_parameter / value - sg_weight_S_parameter / (m_bandwidth.peak * m_bandwidth.scale);
+
+    lmm_variable_t var;
+    lmm_element_t elem = NULL, nextelem = NULL;
+    int numelem = 0;
     while ((var = lmm_get_var_from_cnst_safe(getModel()->getMaxminSystem(), getConstraint(), &elem, &nextelem, &numelem))) {
-      action = (NetworkCm02Action*) lmm_variable_id(var);
+      NetworkCm02Action *action = (NetworkCm02Action*) lmm_variable_id(var);
       action->m_weight += delta;
       if (!action->isSuspended())
         lmm_update_variable_weight(getModel()->getMaxminSystem(), action->getVariable(), action->m_weight);
@@ -562,11 +485,11 @@ void NetworkCm02Link::updateLatency(double value){
   lmm_element_t elem = NULL;
   lmm_element_t nextelem = NULL;
   int numelem = 0;
-  NetworkCm02Action *action = NULL;
 
   m_latency.peak = value;
+
   while ((var = lmm_get_var_from_cnst_safe(getModel()->getMaxminSystem(), getConstraint(), &elem, &nextelem, &numelem))) {
-    action = (NetworkCm02Action*) lmm_variable_id(var);
+    NetworkCm02Action *action = (NetworkCm02Action*) lmm_variable_id(var);
     action->m_latCurrent += delta;
     action->m_weight += delta;
     if (action->m_rate < 0)
@@ -578,8 +501,7 @@ void NetworkCm02Link::updateLatency(double value){
       if (action->m_rate < sg_tcp_gamma / (2.0 * action->m_latCurrent)) {
         XBT_INFO("Flow is limited BYBANDWIDTH");
       } else {
-        XBT_INFO("Flow is limited BYLATENCY, latency of flow is %f",
-                 action->m_latCurrent);
+        XBT_INFO("Flow is limited BYLATENCY, latency of flow is %f", action->m_latCurrent);
       }
     }
     if (!action->isSuspended())

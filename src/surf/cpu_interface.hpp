@@ -43,18 +43,13 @@ public:
    * @brief Create a Cpu
    *
    * @param host The host that will have this CPU
-   * @param speedPeak The peak spead (max speed in Flops)
-   * @param pstate [TODO]
-   * @param speedScale The speed scale (in [O;1] available speed from peak)
+   * @param speedPeak The peak spead (max speed in Flops when no external load comes from a trace)
    * @param speedTrace Trace variations
    * @param core The number of core of this Cpu
-   * @param initiallyOn [TODO]
    * @param state_trace [TODO]
    */
   virtual Cpu *createCpu(simgrid::s4u::Host *host, xbt_dynar_t speedPeak,
-                          int pstate, double speedScale,
                           tmgr_trace_t speedTrace, int core,
-                          int initiallyOn,
                           tmgr_trace_t state_trace)=0;
 
   void updateActionsStateLazy(double now, double delta);
@@ -79,17 +74,11 @@ public:
    * @param host The host in which this Cpu should be plugged
    * @param constraint The lmm constraint associated to this Cpu if it is part of a LMM component
    * @param speedPeakList [TODO]
-   * @param pstate [TODO]
    * @param core The number of core of this Cpu
    * @param speedPeak The speed peak of this Cpu in flops (max speed)
-   * @param speedScale The speed scale of this Cpu in [0;1] (available amount)
-   * @param initiallyOn whether it is created running or crashed
    */
   Cpu(simgrid::surf::Model *model, simgrid::s4u::Host *host,
-    lmm_constraint_t constraint,
-    xbt_dynar_t speedPeakList, int pstate,
-    int core, double speedPeak, double speedScale,
-    int initiallyOn);
+    lmm_constraint_t constraint, xbt_dynar_t speedPeakList, int core, double speedPeak);
 
   /**
    * @brief Cpu constructor
@@ -97,16 +86,11 @@ public:
    * @param model The CpuModel associated to this Cpu
    * @param host The host in which this Cpu should be plugged
    * @param speedPeakList [TODO]
-   * @param pstate
    * @param core The number of core of this Cpu
    * @param speedPeak The speed peak of this Cpu in flops (max speed)
-   * @param speedScale The speed scale of this Cpu in [0;1] (available amount)
-   * @param initiallyOn whether it is created running or crashed
    */
   Cpu(simgrid::surf::Model *model, simgrid::s4u::Host *host,
-      xbt_dynar_t speedPeakList, int pstate,
-    int core, double speedPeak, double speedScale,
-    int initiallyOn);
+      xbt_dynar_t speedPeakList, int core, double speedPeak);
 
   ~Cpu();
 
@@ -149,25 +133,25 @@ public:
   virtual void setPState(int pstate_index);
   virtual int  getPState();
 
-  simgrid::s4u::Host* getHost() { return m_host; }
+  simgrid::s4u::Host* getHost() { return host_; }
 
 public:
-  int m_core = 1;                /* Amount of cores */
-  simgrid::s4u::Host* m_host;
+  int coresAmount_ = 1;
+  simgrid::s4u::Host* host_;
 
-  xbt_dynar_t p_speedPeakList = NULL; /*< List of supported CPU capacities (pstate related) */
-  int m_pstate = 0;                   /*< Current pstate (index in the speedPeakList)*/
+  xbt_dynar_t speedPeakList_ = NULL; /*< List of supported CPU capacities (pstate related) */
+  int pstate_ = 0;                   /*< Current pstate (index in the speedPeakList)*/
 
   /* Note (hypervisor): */
   lmm_constraint_t *p_constraintCore=NULL;
   void **p_constraintCoreId=NULL;
 
 public:
-  virtual void set_state_trace(tmgr_trace_t trace); /*< setup the trace file with states events (ON or OFF). Trace must contain boolean values (0 or 1). */
-  virtual void set_speed_trace(tmgr_trace_t trace); /*< setup the trace file with availability events (peak speed changes due to external load). Trace must contain relative values (ratio between 0 and 1) */
+  virtual void setStateTrace(tmgr_trace_t trace); /*< setup the trace file with states events (ON or OFF). Trace must contain boolean values (0 or 1). */
+  virtual void setSpeedTrace(tmgr_trace_t trace); /*< setup the trace file with availability events (peak speed changes due to external load). Trace must contain relative values (ratio between 0 and 1) */
 
-  tmgr_trace_iterator_t p_stateEvent = nullptr;
-  s_surf_metric_t p_speed = {1.0, 0, nullptr};
+  tmgr_trace_iterator_t stateEvent_ = nullptr;
+  s_surf_metric_t speed_ = {1.0, 0, nullptr};
 };
 
 /**********

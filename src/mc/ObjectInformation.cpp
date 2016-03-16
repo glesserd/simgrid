@@ -4,6 +4,10 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
+#include <cstdint>
+
+#include <vector>
+
 #include "src/mc/Frame.hpp"
 #include "src/mc/ObjectInformation.hpp"
 #include "src/mc/Variable.hpp"
@@ -44,9 +48,9 @@ void *ObjectInformation::base_address() const
     return nullptr;
 
   void *result = this->start_exec;
-  if (this->start_rw != NULL && result > (void *) this->start_rw)
+  if (this->start_rw != nullptr && result > (void *) this->start_rw)
     result = this->start_rw;
-  if (this->start_ro != NULL && result > (void *) this->start_ro)
+  if (this->start_ro != nullptr && result > (void *) this->start_ro)
     result = this->start_ro;
   return result;
 }
@@ -84,7 +88,7 @@ simgrid::mc::Frame* ObjectInformation::find_function(const void *ip) const
      * Either we have found the correct function or we do not know
      * any function corresponding to this instruction address.
      * Only at the point do we derefernce the function pointer. */
-    else if (ip < base[k].function->high_pc)
+    else if ((std::uint64_t) ip < base[k].function->range.end())
       return base[k].function;
     else
       return nullptr;
@@ -108,32 +112,35 @@ void ObjectInformation::remove_global_variable(const char* name)
     return;
 
   // Binary search:
-  size_type start = 0;
-  size_type end = this->global_variables.size() - 1;
+  size_type first = 0;
+  size_type last = this->global_variables.size() - 1;
 
-  while (start <= end) {
-    size_type cursor = start + (end - start) / 2;
+  while (first <= last) {
+    size_type cursor = first + (last - first) / 2;
     simgrid::mc::Variable& current_var = this->global_variables[cursor];
     int cmp = current_var.name.compare(name);
 
     if (cmp == 0) {
+  
       // Find the whole range:
-      start = cursor;
-      while (start != 0 && this->global_variables[start - 1].name == name)
-        start--;
+      size_type first = cursor;
+      while (first != 0 && this->global_variables[first - 1].name == name)
+        first--;
       size_type size = this->global_variables.size();
-      end = cursor;
-      while (end != size - 1 && this->global_variables[end + 1].name == name)
-        end++;
+      size_type last = cursor;
+      while (last != size - 1 && this->global_variables[last + 1].name == name)
+        last++;
+  
       // Remove the whole range:
       this->global_variables.erase(
-        this->global_variables.begin() + cursor,
-        this->global_variables.begin() + end + 1);
+        this->global_variables.begin() + first,
+        this->global_variables.begin() + last + 1);
+  
       return;
     } else if (cmp < 0)
-      start = cursor + 1;
+      first = cursor + 1;
     else if (cursor != 0)
-      end = cursor - 1;
+      last = cursor - 1;
     else
       break;
   }
@@ -146,7 +153,7 @@ void ObjectInformation::remove_global_variable(const char* name)
  *  name.
  *
  *  \param var_name        Name of the local variable (or parameter to ignore)
- *  \param subprogram_name Name of the subprogram fo ignore (NULL for any)
+ *  \param subprogram_name Name of the subprogram fo ignore (nullptr for any)
  *  \param subprogram      (possibly inlined) Subprogram of the scope
  *  \param scope           Current scope
  */

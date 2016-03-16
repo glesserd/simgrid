@@ -8,7 +8,6 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
 
@@ -25,9 +24,10 @@
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
 
+#include <xbt/log.h>
+#include <xbt/base.h>
 #include <xbt/mmalloc.h>
 
-#include "src/mc/mc_object_info.h"
 #include "src/mc/mc_unw.h"
 #include "src/mc/mc_snapshot.h"
 #include "src/mc/mc_ignore.h"
@@ -40,17 +40,19 @@
 
 using simgrid::mc::remote;
 
-extern "C" {
-
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(mc_process, mc,
                                 "MC process information");
 
 // ***** Helper stuff
 
+namespace simgrid {
+namespace mc {
+
 #define SO_RE "\\.so[\\.0-9]*$"
 #define VERSION_RE "-[\\.0-9-]*$"
 
-static const char *const FILTERED_LIBS[] = {
+// In lexicographic order (but this is currently not used in the code):
+static const char *const filtered_libraries[] = {
   "ld",
   "libbz2",
   "libboost_chrono",
@@ -80,14 +82,14 @@ static const char *const FILTERED_LIBS[] = {
   "libz"
 };
 
-static bool MC_is_simgrid_lib(const char* libname)
+static bool is_simgrid_lib(const char* libname)
 {
   return !strcmp(libname, "libsimgrid");
 }
 
-static bool MC_is_filtered_lib(const char* libname)
+static bool is_filtered_lib(const char* libname)
 {
-  for (const char* filtered_lib : FILTERED_LIBS)
+  for (const char* filtered_lib : filtered_libraries)
     if (strcmp(libname, filtered_lib)==0)
       return true;
   return false;
@@ -98,15 +100,19 @@ struct s_mc_memory_map_re {
   regex_t version_re;
 };
 
-static char* MC_get_lib_name(const char* pathname, struct s_mc_memory_map_re* res)
+static char* get_lib_name(const char* pathname, struct s_mc_memory_map_re* res)
 {
-  const char* map_basename = basename((char*) pathname);
+  char* map_basename = xbt_basename(pathname);
 
   regmatch_t match;
-  if(regexec(&res->so_re, map_basename, 1, &match, 0))
-    return NULL;
+  if(regexec(&res->so_re, map_basename, 1, &match, 0)) {
+    free(map_basename);
+    return nullptr;
+  }
 
   char* libname = strndup(map_basename, match.rm_so);
+  free(map_basename);
+  map_basename = nullptr;
 
   // Strip the version suffix:
   if(libname && !regexec(&res->version_re, libname, 1, &match, 0)) {
@@ -128,9 +134,9 @@ static ssize_t pread_whole(int fd, void *buf, size_t count, std::uint64_t offset
       count  -= res;
       buffer += res;
       offset += res;
-    } else if (res==0) {
+    } else if (res==0)
       return -1;
-    } else if (errno != EINTR) {
+    else if (errno != EINTR) {
       perror("pread_whole");
       return -1;
     }
@@ -148,11 +154,10 @@ static ssize_t pwrite_whole(int fd, const void *buf, size_t count, off_t offset)
       count  -= res;
       buffer += res;
       offset += res;
-    } else if (res==0) {
+    } else if (res==0)
       return -1;
-    } else if (errno != EINTR) {
+    else if (errno != EINTR)
       return -1;
-    }
   }
   return real_count;
 }
@@ -161,12 +166,12 @@ static pthread_once_t zero_buffer_flag = PTHREAD_ONCE_INIT;
 static const void* zero_buffer;
 static const size_t zero_buffer_size = 10 * 4096;
 
-static void MC_zero_buffer_init(void)
+static void zero_buffer_init(void)
 {
   int fd = open("/dev/zero", O_RDONLY);
   if (fd<0)
     xbt_die("Could not open /dev/zero");
-  zero_buffer = mmap(NULL, zero_buffer_size, PROT_READ, MAP_SHARED, fd, 0);
+  zero_buffer = mmap(nullptr, zero_buffer_size, PROT_READ, MAP_SHARED, fd, 0);
   if (zero_buffer == MAP_FAILED)
     xbt_die("Could not map the zero buffer");
   close(fd);
@@ -180,11 +185,6 @@ int open_process_file(pid_t pid, const char* file, int flags)
   return open(buff, flags);
 }
 
-}
-
-namespace simgrid {
-namespace mc {
-
 int open_vm(pid_t pid, int flags)
 {
   const size_t buffer_size = 30;
@@ -197,85 +197,56 @@ int open_vm(pid_t pid, int flags)
   return open(buffer, flags);
 }
 
-  
-}
-}
-
 // ***** Process
 
-namespace simgrid {
-namespace mc {
+Process::Process(pid_t pid, int sockfd) :
+   AddressSpace(this), pid_(pid), channel_(sockfd), running_(true)
+{}
 
-Process::Process(pid_t pid, int sockfd) : AddressSpace(this)
+void Process::init()
 {
-  Process* process = this;
-  process->socket_ = sockfd;
-  process->pid_ = pid;
-  process->running_ = true;
-  process->memory_map_ = simgrid::xbt::get_memory_map(pid);
-  process->cache_flags = MC_PROCESS_CACHE_FLAG_NONE;
-  process->init_memory_map_info();
-  process->clear_refs_fd_ = -1;
-  process->pagemap_fd_ = -1;
-  process->privatized_ = false;
+  this->memory_map_ = simgrid::xbt::get_memory_map(this->pid_);
+  this->init_memory_map_info();
 
-  int fd = open_vm(process->pid_, O_RDWR);
+  int fd = open_vm(this->pid_, O_RDWR);
   if (fd<0)
     xbt_die("Could not open file for process virtual address space");
-  process->memory_file = fd;
+  this->memory_file = fd;
 
   // Read std_heap (is a struct mdesc*):
-  simgrid::mc::Variable* std_heap_var = process->find_variable("__mmalloc_default_mdp");
+  simgrid::mc::Variable* std_heap_var = this->find_variable("__mmalloc_default_mdp");
   if (!std_heap_var)
     xbt_die("No heap information in the target process");
   if(!std_heap_var->address)
     xbt_die("No constant address for this variable");
-  process->read_bytes(&process->heap_address, sizeof(struct mdesc*),
+  this->read_bytes(&this->heap_address, sizeof(struct mdesc*),
     remote(std_heap_var->address),
     simgrid::mc::ProcessIndexDisabled);
 
-  process->smx_process_infos = MC_smx_process_info_list_new();
-  process->smx_old_process_infos = MC_smx_process_info_list_new();
-  process->unw_addr_space = unw_create_addr_space(&mc_unw_accessors  , __BYTE_ORDER);
-  process->unw_underlying_addr_space = unw_create_addr_space(&mc_unw_vmread_accessors, __BYTE_ORDER);
-  process->unw_underlying_context = _UPT_create(pid);
+  this->smx_process_infos.clear();
+  this->smx_old_process_infos.clear();
+  this->unw_addr_space = simgrid::mc::UnwindContext::createUnwindAddressSpace();
+  this->unw_underlying_addr_space = simgrid::unw::create_addr_space();
+  this->unw_underlying_context = simgrid::unw::create_context(
+    this->unw_underlying_addr_space, this->pid_);
 }
 
 Process::~Process()
 {
-  Process* process = this;
+  if (this->memory_file >= 0)
+    close(this->memory_file);
 
-  if (this->socket_ >= 0 && close(this->socket_) < 0)
-    xbt_die("Could not close communication socket");
-
-  process->pid_ = 0;
-
-  process->maestro_stack_start_ = nullptr;
-  process->maestro_stack_end_ = nullptr;
-
-  xbt_dynar_free(&process->smx_process_infos);
-  xbt_dynar_free(&process->smx_old_process_infos);
-
-  if (process->memory_file >= 0) {
-    close(process->memory_file);
+  if (this->unw_underlying_addr_space != unw_local_addr_space) {
+    unw_destroy_addr_space(this->unw_underlying_addr_space);
+    _UPT_destroy(this->unw_underlying_context);
   }
 
-  if (process->unw_underlying_addr_space != unw_local_addr_space) {
-    unw_destroy_addr_space(process->unw_underlying_addr_space);
-    _UPT_destroy(process->unw_underlying_context);
-  }
-  process->unw_underlying_context = NULL;
-  process->unw_underlying_addr_space = NULL;
+  unw_destroy_addr_space(this->unw_addr_space);
 
-  unw_destroy_addr_space(process->unw_addr_space);
-  process->unw_addr_space = NULL;
-
-  process->cache_flags = MC_PROCESS_CACHE_FLAG_NONE;
-
-  if (process->clear_refs_fd_ >= 0)
-    close(process->clear_refs_fd_);
-  if (process->pagemap_fd_ >= 0)
-    close(process->pagemap_fd_);
+  if (this->clear_refs_fd_ >= 0)
+    close(this->clear_refs_fd_);
+  if (this->pagemap_fd_ >= 0)
+    close(this->pagemap_fd_);
 }
 
 /** Refresh the information about the process
@@ -285,13 +256,12 @@ Process::~Process()
  */
 void Process::refresh_heap()
 {
-  xbt_assert(mc_mode == MC_MODE_SERVER);
   // Read/dereference/refresh the std_heap pointer:
   if (!this->heap)
     this->heap = std::unique_ptr<s_xbt_mheap_t>(new s_xbt_mheap_t());
   this->read_bytes(this->heap.get(), sizeof(struct mdesc),
     remote(this->heap_address), simgrid::mc::ProcessIndexDisabled);
-  this->cache_flags |= MC_PROCESS_CACHE_FLAG_HEAP;
+  this->cache_flags_ |= Process::cache_heap;
 }
 
 /** Refresh the information about the process
@@ -301,16 +271,15 @@ void Process::refresh_heap()
  * */
 void Process::refresh_malloc_info()
 {
-  xbt_assert(mc_mode == MC_MODE_SERVER);
-  if (!(this->cache_flags & MC_PROCESS_CACHE_FLAG_HEAP))
-    this->refresh_heap();
   // Refresh process->heapinfo:
+  if (this->cache_flags_ & Process::cache_malloc)
+    return;
   size_t count = this->heap->heaplimit + 1;
   if (this->heap_info.size() < count)
     this->heap_info.resize(count);
   this->read_bytes(this->heap_info.data(), count * sizeof(malloc_info),
     remote(this->heap->heapinfo), simgrid::mc::ProcessIndexDisabled);
-  this->cache_flags |= MC_PROCESS_CACHE_FLAG_MALLOC_INFO;
+  this->cache_flags_ |= Process::cache_malloc;
 }
 
 /** @brief Finds the range of the different memory segments and binary paths */
@@ -320,8 +289,8 @@ void Process::init_memory_map_info()
   this->maestro_stack_start_ = nullptr;
   this->maestro_stack_end_ = nullptr;
   this->object_infos.resize(0);
-  this->binary_info = NULL;
-  this->libsimgrid_info = NULL;
+  this->binary_info = nullptr;
+  this->libsimgrid_info = nullptr;
 
   struct s_mc_memory_map_re res;
 
@@ -330,9 +299,9 @@ void Process::init_memory_map_info()
 
   std::vector<simgrid::xbt::VmMap> const& maps = this->memory_map_;
 
-  const char* current_name = NULL;
+  const char* current_name = nullptr;
 
-  this->object_infos.resize(0);
+  this->object_infos.clear();
 
   for (size_t i=0; i < maps.size(); i++) {
     simgrid::xbt::VmMap const& reg = maps[i];
@@ -340,7 +309,7 @@ void Process::init_memory_map_info()
 
     // Nothing to do
     if (maps[i].pathname.empty()) {
-      current_name = NULL;
+      current_name = nullptr;
       continue;
     }
 
@@ -350,7 +319,7 @@ void Process::init_memory_map_info()
         this->maestro_stack_start_ = remote(reg.start_addr);
         this->maestro_stack_end_ = remote(reg.end_addr);
       }
-      current_name = NULL;
+      current_name = nullptr;
       continue;
     }
 
@@ -362,23 +331,23 @@ void Process::init_memory_map_info()
       continue;
 
     const bool is_executable = !i;
-    char* libname = NULL;
+    char* libname = nullptr;
     if (!is_executable) {
-      libname = MC_get_lib_name(pathname, &res);
+      libname = get_lib_name(pathname, &res);
       if(!libname)
         continue;
-      if (MC_is_filtered_lib(libname)) {
+      if (is_filtered_lib(libname)) {
         free(libname);
         continue;
       }
     }
 
     std::shared_ptr<simgrid::mc::ObjectInformation> info =
-      MC_find_object_info(this->memory_map_, pathname);
+      simgrid::mc::createObjectInformation(this->memory_map_, pathname);
     this->object_infos.push_back(info);
     if (is_executable)
       this->binary_info = info;
-    else if (libname && MC_is_simgrid_lib(libname))
+    else if (libname && is_simgrid_lib(libname))
       this->libsimgrid_info = info;
     free(libname);
   }
@@ -388,7 +357,7 @@ void Process::init_memory_map_info()
 
   // Resolve time (including accross differents objects):
   for (auto const& object_info : this->object_infos)
-    MC_post_process_object_info(this, object_info.get());
+    postProcessObjectInformation(this, object_info.get());
 
   xbt_assert(this->maestro_stack_start_, "Did not find maestro_stack_start");
   xbt_assert(this->maestro_stack_end_, "Did not find maestro_stack_end");
@@ -396,40 +365,34 @@ void Process::init_memory_map_info()
   XBT_DEBUG("Get debug information done !");
 }
 
-std::shared_ptr<simgrid::mc::ObjectInformation> Process::find_object_info(remote_ptr<void> addr) const
+std::shared_ptr<simgrid::mc::ObjectInformation> Process::find_object_info(RemotePtr<void> addr) const
 {
-  for (auto const& object_info : this->object_infos) {
+  for (auto const& object_info : this->object_infos)
     if (addr.address() >= (std::uint64_t)object_info->start
-        && addr.address() <= (std::uint64_t)object_info->end) {
+        && addr.address() <= (std::uint64_t)object_info->end)
       return object_info;
-    }
-  }
-  return NULL;
+  return nullptr;
 }
 
-std::shared_ptr<ObjectInformation> Process::find_object_info_exec(remote_ptr<void> addr) const
+std::shared_ptr<ObjectInformation> Process::find_object_info_exec(RemotePtr<void> addr) const
 {
-  for (std::shared_ptr<ObjectInformation> const& info : this->object_infos) {
+  for (std::shared_ptr<ObjectInformation> const& info : this->object_infos)
     if (addr.address() >= (std::uint64_t) info->start_exec
-        && addr.address() <= (std::uint64_t) info->end_exec) {
+        && addr.address() <= (std::uint64_t) info->end_exec)
       return info;
-    }
-  }
   return nullptr;
 }
 
-std::shared_ptr<ObjectInformation> Process::find_object_info_rw(remote_ptr<void> addr) const
+std::shared_ptr<ObjectInformation> Process::find_object_info_rw(RemotePtr<void> addr) const
 {
-  for (std::shared_ptr<ObjectInformation> const& info : this->object_infos) {
+  for (std::shared_ptr<ObjectInformation> const& info : this->object_infos)
     if (addr.address() >= (std::uint64_t)info->start_rw
-        && addr.address() <= (std::uint64_t)info->end_rw) {
+        && addr.address() <= (std::uint64_t)info->end_rw)
       return info;
-    }
-  }
   return nullptr;
 }
 
-simgrid::mc::Frame* Process::find_function(remote_ptr<void> ip) const
+simgrid::mc::Frame* Process::find_function(RemotePtr<void> ip) const
 {
   std::shared_ptr<simgrid::mc::ObjectInformation> info = this->find_object_info_exec(ip);
   return info ? info->find_function((void*) ip.address()) : nullptr;
@@ -456,7 +419,7 @@ simgrid::mc::Variable* Process::find_variable(const char* name) const
       return var;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void Process::read_variable(const char* name, void* target, size_t size) const
@@ -472,10 +435,10 @@ void Process::read_variable(const char* name, void* target, size_t size) const
   this->read_bytes(target, size, remote(var->address));
 }
 
-char* Process::read_string(remote_ptr<void> address) const
+char* Process::read_string(RemotePtr<void> address) const
 {
   if (!address)
-    return NULL;
+    return nullptr;
 
   off_t len = 128;
   char* res = (char*) malloc(len);
@@ -505,14 +468,14 @@ char* Process::read_string(remote_ptr<void> address) const
 }
 
 const void *Process::read_bytes(void* buffer, std::size_t size,
-  remote_ptr<void> address, int process_index,
-  AddressSpace::ReadMode mode) const
+  RemotePtr<void> address, int process_index,
+  ReadOptions options) const
 {
   if (process_index != simgrid::mc::ProcessIndexDisabled) {
     std::shared_ptr<simgrid::mc::ObjectInformation> const& info =
       this->find_object_info_rw((void*)address.address());
     // Segment overlap is not handled.
-#ifdef HAVE_SMPI
+#if HAVE_SMPI
     if (info.get() && this->privatized(*info)) {
       if (process_index < 0)
         xbt_die("Missing process index");
@@ -547,15 +510,15 @@ const void *Process::read_bytes(void* buffer, std::size_t size,
  *  @param remote  target process memory address (target)
  *  @param len     data size
  */
-void Process::write_bytes(const void* buffer, size_t len, remote_ptr<void> address)
+void Process::write_bytes(const void* buffer, size_t len, RemotePtr<void> address)
 {
   if (pwrite_whole(this->memory_file, buffer, len, address.address()) < 0)
     xbt_die("Write to process %lli failed", (long long) this->pid_);
 }
 
-void Process::clear_bytes(remote_ptr<void> address, size_t len)
+void Process::clear_bytes(RemotePtr<void> address, size_t len)
 {
-  pthread_once(&zero_buffer_flag, MC_zero_buffer_init);
+  pthread_once(&zero_buffer_flag, zero_buffer_init);
   while (len) {
     size_t s = len > zero_buffer_size ? zero_buffer_size : len;
     this->write_bytes(zero_buffer, s, address);
@@ -598,16 +561,14 @@ void Process::ignore_region(std::uint64_t addr, std::size_t size)
 
   std::size_t position;
   if (current_region->addr == addr) {
-    if (current_region->size < size) {
+    if (current_region->size < size)
       position = cursor + 1;
-    } else {
+    else
       position = cursor;
-    }
-  } else if (current_region->addr < addr) {
+  } else if (current_region->addr < addr)
     position = cursor + 1;
-  } else {
+  else
     position = cursor;
-  }
   ignored_regions_.insert(
     ignored_regions_.begin() + position, region);
 }
@@ -705,6 +666,18 @@ void Process::ignore_local_variable(const char *var_name, const char *frame_name
   for (std::shared_ptr<simgrid::mc::ObjectInformation> const& info :
       this->object_infos)
     info->remove_local_variable(var_name, frame_name);
+}
+
+std::vector<simgrid::mc::SimixProcessInformation>& Process::simix_processes()
+{
+  this->refresh_simix();
+  return smx_process_infos;
+}
+
+std::vector<simgrid::mc::SimixProcessInformation>& Process::old_simix_processes()
+{
+  this->refresh_simix();
+  return smx_old_process_infos;
 }
 
 }

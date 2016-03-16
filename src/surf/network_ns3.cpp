@@ -5,16 +5,19 @@
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
 #include "src/surf/network_ns3.hpp"
+
+#include "src/surf/HostImpl.hpp"
 #include "src/surf/surf_private.h"
-#include "src/surf/host_interface.hpp"
 #include "simgrid/sg_config.h"
-#include "src/surf/platform.hpp"
+#include "src/instr/instr_private.h" // TRACE_is_enabled(). FIXME: remove by subscribing tracing to the surf signals
+
+#include "simgrid/s4u/As.hpp"
 
 XBT_LOG_EXTERNAL_DEFAULT_CATEGORY(ns3);
 
 int NS3_EXTENSION_ID;
 
-xbt_dynar_t IPV4addr;
+xbt_dynar_t IPV4addr = xbt_dynar_new(sizeof(char*),free);
 static double time_to_next_flow_completion = -1;
 
 extern xbt_dict_t dict_socket;
@@ -34,22 +37,17 @@ static void parse_ns3_add_link(sg_platf_link_cbarg_t link)
 {
   XBT_DEBUG("NS3_ADD_LINK '%s'",link->id);
 
-  if(!IPV4addr) IPV4addr = xbt_dynar_new(sizeof(char*),free);
-
-  surf_network_model->createLink(link->id,
-                                     link->bandwidth,
-                                     link->bandwidth_trace,
-                                     link->latency,
-                                     link->latency_trace,
-                                     link->initiallyOn,
-                                     link->state_trace,
-                                     link->policy,
-                                     link->properties);
+  Link *l = surf_network_model->createLink(link->id, link->bandwidth, link->latency, link->policy, link->properties);
+  if (link->bandwidth_trace)
+    l->setBandwidthTrace(link->latency_trace);
+  if (link->latency_trace)
+    l->setLatencyTrace(link->latency_trace);
+  if (link->state_trace)
+    l->setStateTrace(link->state_trace);
 }
-
 static void simgrid_ns3_add_router(simgrid::surf::NetCard* router)
 {
-  const char* router_id = router->getName();
+  const char* router_id = router->name();
   XBT_DEBUG("NS3_ADD_ROUTER '%s'",router_id);
   xbt_lib_set(as_router_lib,
               router_id,
@@ -58,13 +56,14 @@ static void simgrid_ns3_add_router(simgrid::surf::NetCard* router)
     );
 }
 
-static void parse_ns3_add_AS(simgrid::surf::As* as)
+static void parse_ns3_add_AS(simgrid::s4u::As* as)
 {
-  const char* as_id = as->p_name;
+  const char* as_id = as->name();
   XBT_DEBUG("NS3_ADD_AS '%s'", as_id);
   xbt_lib_set(as_router_lib, as_id, NS3_ASR_LEVEL, ns3_add_AS(as_id) );
 }
 
+#include "src/surf/xml/platf.hpp" // FIXME: move that back to the parsing area
 static void parse_ns3_add_cluster(sg_platf_cluster_cbarg_t cluster)
 {
   const char *groups = NULL;
@@ -165,10 +164,10 @@ static void create_ns3_topology(void)
   simgrid::surf::Onelink *onelink;
   unsigned int iter;
   xbt_dynar_foreach(onelink_routes, iter, onelink) {
-    char *src = onelink->p_src->getName();
-    char *dst = onelink->p_dst->getName();
-    simgrid::surf::NetworkNS3Link *link =
-      static_cast<simgrid::surf::NetworkNS3Link *>(onelink->p_link);
+    char *src = onelink->src_->name();
+    char *dst = onelink->dst_->name();
+    simgrid::surf::LinkNS3 *link =
+      static_cast<simgrid::surf::LinkNS3 *>(onelink->link_);
 
     if (strcmp(src,dst) && link->m_created){
       XBT_DEBUG("Route from '%s' to '%s' with link '%s'", src, dst, link->getName());
@@ -207,7 +206,7 @@ static void define_callbacks_ns3(void)
 {
   simgrid::s4u::Host::onCreation.connect(simgrid_ns3_add_host);
   simgrid::surf::netcardCreatedCallbacks.connect(simgrid_ns3_add_router);
-  simgrid::surf::on_link.connect (&parse_ns3_add_link);
+  simgrid::surf::on_link.connect (parse_ns3_add_link);
   simgrid::surf::on_cluster.connect (&parse_ns3_add_cluster);
   simgrid::surf::asCreatedCallbacks.connect(parse_ns3_add_AS);
   simgrid::surf::on_postparse.connect(&create_ns3_topology); //get_one_link_routes
@@ -219,7 +218,7 @@ static void define_callbacks_ns3(void)
  *********/
 static void free_ns3_link(void * elmts)
 {
-  delete static_cast<simgrid::surf::NetworkNS3Link*>(elmts);
+  delete static_cast<simgrid::surf::LinkNS3*>(elmts);
 }
 
 static void free_ns3_host(void * elmts)
@@ -258,40 +257,21 @@ NetworkNS3Model::~NetworkNS3Model() {
   xbt_dict_free(&dict_socket);
 }
 
-Link* NetworkNS3Model::createLink(const char *name,
-                                   double bw_initial,
-                                   tmgr_trace_t bw_trace,
-                                   double lat_initial,
-                                   tmgr_trace_t lat_trace,
-                                   int initiallyOn,
-                                   tmgr_trace_t state_trace,
-                                   e_surf_link_sharing_policy_t policy,
-                                   xbt_dict_t properties){
-  if (bw_trace)
-    XBT_INFO("The NS3 network model doesn't support bandwidth state traces");
-  if (lat_trace)
-    XBT_INFO("The NS3 network model doesn't support latency state traces");
-  if (state_trace)
-    XBT_INFO("The NS3 network model doesn't support link state traces");
-  Link* link = new NetworkNS3Link(this, name, properties, bw_initial, lat_initial);
+Link* NetworkNS3Model::createLink(const char *name, double bandwidth, double latency, e_surf_link_sharing_policy_t policy,
+    xbt_dict_t properties){
+
+  Link* link = new LinkNS3(this, name, properties, bandwidth, latency);
   Link::onCreation(link);
   return link;
-}
-
-xbt_dynar_t NetworkNS3Model::getRoute(NetCard *src, NetCard *dst)
-{
-  xbt_dynar_t route = NULL;
-  routing_platf->getRouteAndLatency(src, dst, &route, NULL);
-  return route;
 }
 
 Action *NetworkNS3Model::communicate(NetCard *src, NetCard *dst,
                                    double size, double rate)
 {
-  XBT_DEBUG("Communicate from %s to %s", src->getName(), dst->getName());
+  XBT_DEBUG("Communicate from %s to %s", src->name(), dst->name());
   NetworkNS3Action *action = new NetworkNS3Action(this, size, 0);
 
-  ns3_create_flow(src->getName(), dst->getName(), surf_get_clock(), size, action);
+  ns3_create_flow(src->name(), dst->name(), surf_get_clock(), size, action);
 
   action->m_lastSent = 0;
   action->p_srcElm = src;
@@ -350,18 +330,13 @@ void NetworkNS3Model::updateActionsState(double now, double delta)
       double data_sent = ns3_get_socket_sent(data);
       double data_delta_sent = data_sent - action->m_lastSent;
 
-      xbt_dynar_t route = NULL;
+      std::vector<Link*> *route = new std::vector<Link*>();
 
-      routing_platf->getRouteAndLatency (action->p_srcElm, action->p_dstElm, &route, NULL);
-      unsigned int i;
-      for (i = 0; i < xbt_dynar_length (route); i++){
-        NetworkNS3Link* link = ((NetworkNS3Link*)xbt_dynar_get_ptr(route, i));
-        TRACE_surf_link_set_utilization (link->getName(),
-            action->getCategory(),
-          (data_delta_sent)/delta,
-          now-delta,
-          delta);
-      }
+      routing_platf->getRouteAndLatency (action->p_srcElm, action->p_dstElm, route, NULL);
+      for (auto link : *route)
+        TRACE_surf_link_set_utilization (link->getName(), action->getCategory(), (data_delta_sent)/delta, now-delta, delta);
+      delete route;
+
       action->m_lastSent = data_sent;
     }
 
@@ -388,22 +363,27 @@ void NetworkNS3Model::updateActionsState(double now, double delta)
  * Resource *
  ************/
 
-NetworkNS3Link::NetworkNS3Link(NetworkNS3Model *model, const char *name, xbt_dict_t props,
-                           double bw_initial, double lat_initial)
+LinkNS3::LinkNS3(NetworkNS3Model *model, const char *name, xbt_dict_t props, double bandwidth, double latency)
  : Link(model, name, props)
  , m_created(1)
 {
-  m_bandwidth.peak = bw_initial;
-  m_latency.peak = lat_initial;
+  m_bandwidth.peak = bandwidth;
+  m_latency.peak = latency;
 }
 
-NetworkNS3Link::~NetworkNS3Link()
+LinkNS3::~LinkNS3()
 {
 }
 
-void NetworkNS3Link::apply_event(tmgr_trace_iterator_t event, double value)
+void LinkNS3::apply_event(tmgr_trace_iterator_t event, double value)
 {
   THROW_UNIMPLEMENTED;
+}
+void LinkNS3::setBandwidthTrace(tmgr_trace_t trace) {
+  xbt_die("The NS3 network model doesn't support latency state traces");
+}
+void LinkNS3::setLatencyTrace(tmgr_trace_t trace) {
+  xbt_die("The NS3 network model doesn't support latency state traces");
 }
 
 /**********
@@ -414,13 +394,7 @@ NetworkNS3Action::NetworkNS3Action(Model *model, double cost, bool failed)
 : NetworkAction(model, cost, failed)
 {}
 
-#ifdef HAVE_LATENCY_BOUND_TRACKING
-  int NetworkNS3Action::getLatencyLimited() {
-    return m_latencyLimited;
-  }
-#endif
-
- void NetworkNS3Action::suspend()
+void NetworkNS3Action::suspend()
 {
   THROW_UNIMPLEMENTED;
 }

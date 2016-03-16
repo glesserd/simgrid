@@ -13,12 +13,11 @@
 #include "xbt/graph.h"
 #include "xbt/misc.h"
 #include "xbt/config.h"
-#include "src/portable.h"
+#include "src/internal_config.h"
 #include "surf/surf_routing.h"
 #include "surf/datatypes.h"
 #include "xbt/lib.h"
 #include "surf/surf_routing.h"
-#include "simgrid/platf_interface.h"
 #include "simgrid/datatypes.h"
 #include "simgrid/forward.h"
 
@@ -35,8 +34,7 @@ extern XBT_PRIVATE int sg_network_crosstraffic;
 extern XBT_PRIVATE xbt_dynar_t surf_path;
 
 typedef enum {
-  SURF_NETWORK_ELEMENT_NULL = 0, /* NULL */
-  SURF_NETWORK_ELEMENT_HOST,     /* host type */
+  SURF_NETWORK_ELEMENT_HOST=1,     /* host type */
   SURF_NETWORK_ELEMENT_ROUTER,   /* router type */
   SURF_NETWORK_ELEMENT_AS        /* AS type */
 } e_surf_network_element_type_t;
@@ -54,15 +52,13 @@ class NetworkModel;
 class StorageModel;
 class Resource;
 class ResourceLmm;
-class Host;
+class HostImpl;
 class HostCLM03;
 class NetworkCm02Link;
 class Action;
 class ActionLmm;
 class StorageActionLmm;
-class As;
 class RoutingPlatf;
-
 }
 }
 
@@ -74,7 +70,7 @@ typedef simgrid::surf::NetworkModel surf_NetworkModel;
 typedef simgrid::surf::StorageModel surf_StorageModel;
 typedef simgrid::surf::Resource surf_Resource;
 typedef simgrid::surf::ResourceLmm surf_ResourceLmm;
-typedef simgrid::surf::Host surf_Host;
+typedef simgrid::surf::HostImpl surf_Host;
 typedef simgrid::surf::HostCLM03 surf_HostCLM03;
 typedef simgrid::surf::NetworkCm02Link surf_NetworkCm02Link;
 typedef simgrid::surf::Action surf_Action;
@@ -133,22 +129,6 @@ typedef surf_RoutingPlatf *routing_platf_t;
 
 typedef struct surf_file *surf_file_t;
 
-XBT_PUBLIC(e_surf_network_element_type_t)
-  routing_get_network_element_type(const char* name);
-
-/** @Brief Specify that we use that action */
-XBT_PUBLIC(void) surf_action_ref(surf_action_t action);
-
-/** @brief Creates a new action.
- *
- * @param size The size is the one of the subtype you want to create
- * @param cost initial value
- * @param model to which model we should attach this action
- * @param failed whether we should start this action in failed mode
- */
-XBT_PUBLIC(void *) surf_action_new(size_t size, double cost,
-                                   surf_model_t model, int failed);
-
 /** \brief Resource model description
  */
 typedef struct surf_model_description {
@@ -157,10 +137,8 @@ typedef struct surf_model_description {
   void_f_void_t model_init_preparse;
 } s_surf_model_description_t, *surf_model_description_t;
 
-XBT_PUBLIC(int) find_model_description(s_surf_model_description_t * table,
-                                       const char *name);
-XBT_PUBLIC(void) model_help(const char *category,
-                            s_surf_model_description_t * table);
+XBT_PUBLIC(int) find_model_description(s_surf_model_description_t * table, const char *name);
+XBT_PUBLIC(void) model_help(const char *category, s_surf_model_description_t * table);
 
 /** @ingroup SURF_interface
  *  @brief Action states
@@ -231,10 +209,6 @@ XBT_PUBLIC(surf_action_t) surf_model_extract_failed_action_set(surf_model_t mode
  */
 XBT_PUBLIC(int) surf_model_running_action_set_size(surf_model_t model);
 
-/** @brief Get the route (dynar of sg_link_t) between two hosts */
-XBT_PUBLIC(xbt_dynar_t) surf_host_model_get_route(
-  surf_host_model_t model, sg_host_t src, sg_host_t dst);
-
 /** @brief Create a new VM on the specified host */
 XBT_PUBLIC(void) surf_vm_model_create(const char *name, sg_host_t host_PM);
 
@@ -256,9 +230,6 @@ XBT_PUBLIC(surf_action_t) surf_network_model_communicate(surf_network_model_t mo
  * @return The name of the surf resource
  */
 XBT_PUBLIC(const char * ) surf_resource_name(surf_cpp_resource_t resource);
-static inline const char * surf_cpu_name(surf_cpu_t cpu) {
-  return surf_resource_name((surf_cpp_resource_t)cpu);
-}
 
 /** @brief Get the available speed of cpu associated to a host */
 XBT_PUBLIC(double) surf_host_get_available_speed(sg_host_t host);
@@ -310,19 +281,6 @@ XBT_PUBLIC(sg_size_t) surf_host_get_free_size(sg_host_t resource, const char* na
  * @return The amount of used space in bytes
  */
 XBT_PUBLIC(sg_size_t) surf_host_get_used_size(sg_host_t resource, const char* name);
-
-/** @brief Get the list of VMs hosted on the host */
-XBT_PUBLIC(xbt_dynar_t) surf_host_get_vms(sg_host_t resource);
-
-/** @brief Retrieve the params of that VM
- * @details You can use fields ramsize and overcommit on a PM, too.
- */
-XBT_PUBLIC(void) surf_host_get_params(sg_host_t resource, vm_params_t params);
-
-/** @brief Sets the params of that VM/PM
- * @details You can use fields ramsize and overcommit on a PM, too.
- */
-XBT_PUBLIC(void) surf_host_set_params(sg_host_t resource, vm_params_t params);
 
 /**
  * @brief Destroy a VM
@@ -385,14 +343,6 @@ XBT_PUBLIC(void) surf_vm_set_bound(sg_host_t resource, double bound);
  * @param mask [description]
  */
 XBT_PUBLIC(void) surf_vm_set_affinity(sg_host_t resource, sg_host_t cpu, unsigned long mask);
-
-/**
- * @brief Get the list of storages attached to an host
- *
- * @param host The surf host
- * @return Dictionary of storage
- */
-XBT_PUBLIC(xbt_dynar_t) surf_host_get_attached_storage_list(sg_host_t host);
 
 /**
  * @brief Unlink a file descriptor
@@ -488,82 +438,6 @@ XBT_PUBLIC(sg_size_t) surf_storage_get_used_size(surf_resource_t resource);
 XBT_PUBLIC(xbt_dict_t) surf_storage_get_properties(surf_resource_t resource);
 
 /**
- * @brief Get the data associated to the action
- *
- * @param action The surf action
- * @return The data associated to the action
- */
-XBT_PUBLIC(void*) surf_action_get_data(surf_action_t action);
-
-/**
- * @brief Set the data associated to the action
- * @details [long description]
- *
- * @param action The surf action
- * @param data The new data associated to the action
- */
-XBT_PUBLIC(void) surf_action_set_data(surf_action_t action, void *data);
-
-/**
- * @brief Get the start time of an action
- *
- * @param action The surf action
- * @return The start time in seconds from the beginning of the simulation
- */
-XBT_PUBLIC(double) surf_action_get_start_time(surf_action_t action);
-
-/**
- * @brief Get the finish time of an action
- *
- * @param action The surf action
- * @return The finish time in seconds from the beginning of the simulation
- */
-XBT_PUBLIC(double) surf_action_get_finish_time(surf_action_t action);
-
-/**
- * @brief Get the remains amount of work to do of an action
- *
- * @param action The surf action
- * @return  The remains amount of work to do
- */
-XBT_PUBLIC(double) surf_action_get_remains(surf_action_t action);
-
-/**
- * @brief Set the category of an action
- * @details [long description]
- *
- * @param action The surf action
- * @param category The new category of the action
- */
-XBT_PUBLIC(void) surf_action_set_category(surf_action_t action, const char *category);
-
-/**
- * @brief Get the state of an action
- *
- * @param action The surf action
- * @return The state of the action
- */
-XBT_PUBLIC(e_surf_action_state_t) surf_action_get_state(surf_action_t action);
-
-/**
- * @brief Get the cost of an action
- *
- * @param action The surf action
- * @return The cost of the action
- */
-XBT_PUBLIC(double) surf_action_get_cost(surf_action_t action);
-
-/**
- * @brief [brief desrciption]
- * @details [long description]
- *
- * @param action The surf cpu action
- * @param cpu [description]
- * @param mask [description]
- */
-XBT_PUBLIC(void) surf_cpu_action_set_affinity(surf_action_t action, sg_host_t cpu, unsigned long mask);
-
-/**
  * @brief [brief description]
  * @details [long description]
  *
@@ -629,10 +503,9 @@ XBT_PUBLIC_DATA(surf_cpu_model_t) surf_cpu_model_vm;
 /** \ingroup SURF_models
  *  \brief Initializes the CPU model with the model Cas01
  *
- *  By default, this model uses the lazy optimization mechanism that
- *  relies on partial invalidation in LMM and a heap for lazy action update.
- *  You can change this behavior by setting the cpu/optim configuration
- *  variable to a different value.
+ *  By default, this model uses the lazy optimization mechanism that relies on partial invalidation in LMM and a heap
+ *  for lazy action update.
+ *  You can change this behavior by setting the cpu/optim configuration variable to a different value.
  *
  *  You shouldn't have to call it by yourself.
  */
@@ -661,27 +534,19 @@ XBT_PUBLIC_DATA(s_surf_model_description_t) surf_plugin_description[];
  */
 XBT_PUBLIC_DATA(s_surf_model_description_t) surf_cpu_model_description[];
 
-/**\brief create new host bypass the parser
- *
- */
-
-
 /** \ingroup SURF_models
  *  \brief The network model
  *
- *  When creating a new API on top on SURF, you shouldn't use the
- *  network model unless you know what you are doing. Only the host
- *  model should be accessed because depending on the platform model,
- *  the network model can be NULL.
+ *  When creating a new API on top on SURF, you shouldn't use the network model unless you know what you are doing.
+ *  Only the host model should be accessed because depending on the platform model, the network model can be NULL.
  */
 XBT_PUBLIC_DATA(surf_network_model_t) surf_network_model;
 
 /** \ingroup SURF_models
  *  \brief Same as network model 'LagrangeVelho', only with different correction factors.
  *
- * This model is proposed by Pierre-Nicolas Clauss and Martin Quinson and Stéphane Génaud
- * based on the model 'LV08' and different correction factors depending on the communication
- * size (< 1KiB, < 64KiB, >= 64KiB).
+ * This model is proposed by Pierre-Nicolas Clauss and Martin Quinson and Stéphane Génaud based on the model 'LV08' and
+ * different correction factors depending on the communication size (< 1KiB, < 64KiB, >= 64KiB).
  * See comments in the code for more information.
  *
  *  \see surf_host_model_init_SMPI()
@@ -701,9 +566,8 @@ XBT_PUBLIC(void) surf_network_model_init_IB(void);
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the network model 'LegrandVelho'
  *
- * This model is proposed by Arnaud Legrand and Pedro Velho based on
- * the results obtained with the GTNets simulator for onelink and
- * dogbone sharing scenarios. See comments in the code for more information.
+ * This model is proposed by Arnaud Legrand and Pedro Velho based on the results obtained with the GTNets simulator for
+ * onelink and dogbone sharing scenarios. See comments in the code for more information.
  *
  *  \see surf_host_model_init_LegrandVelho()
  */
@@ -712,11 +576,9 @@ XBT_PUBLIC(void) surf_network_model_init_LegrandVelho(void);
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the network model 'Constant'
  *
- *  In this model, the communication time between two network cards is
- *  constant, hence no need for a routing table. This is particularly
- *  usefull when simulating huge distributed algorithms where
- *  scalability is really an issue. This function is called in
- *  conjunction with surf_host_model_init_compound.
+ *  In this model, the communication time between two network cards is constant, hence no need for a routing table.
+ *  This is particularly useful when simulating huge distributed algorithms where scalability is really an issue. This
+ *  function is called in conjunction with surf_host_model_init_compound.
  *
  *  \see surf_host_model_init_compound()
  */
@@ -725,18 +587,17 @@ XBT_PUBLIC(void) surf_network_model_init_Constant(void);
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the network model CM02
  *
- *  You sould call this function by yourself only if you plan using
- *  surf_host_model_init_compound.
+ *  You sould call this function by yourself only if you plan using surf_host_model_init_compound.
  *  See comments in the code for more information.
  */
 XBT_PUBLIC(void) surf_network_model_init_CM02(void);
 
-#ifdef HAVE_NS3
+#if HAVE_NS3
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the network model NS3
  *
- *  This function is called by surf_host_model_init_NS3
- *  or by yourself only if you plan using surf_host_model_init_compound
+ *  This function is called by surf_host_model_init_NS3 or by yourself only if you plan using
+ *  surf_host_model_init_compound
  *
  *  \see surf_host_model_init_NS3()
  */
@@ -753,7 +614,6 @@ XBT_PUBLIC(void) surf_network_model_init_NS3(void);
  *  IEEE/ACM Transaction on Networking, 11(4):525-536, 2003.
  *
  *  Call this function only if you plan using surf_host_model_init_compound.
- *
  */
 XBT_PUBLIC(void) surf_network_model_init_Reno(void);
 
@@ -767,30 +627,26 @@ XBT_PUBLIC(void) surf_network_model_init_Reno(void);
  *  IEEE/ACM Transaction on Networking, 11(4):525-536, 2003.
  *
  *  Call this function only if you plan using surf_host_model_init_compound.
- *
  */
 XBT_PUBLIC(void) surf_network_model_init_Reno2(void);
 
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the network model Vegas
  *
- *  This problem is related to max( sum( a * Df * ln(xi) ) ) which is equivalent
- *  to the proportional fairness.
+ *  This problem is related to max( sum( a * Df * ln(xi) ) ) which is equivalent  to the proportional fairness.
  *
  *  Reference:
  *  [LOW03] S. H. Low. A duality model of TCP and queue management algorithms.
  *  IEEE/ACM Transaction on Networking, 11(4):525-536, 2003.
  *
  *  Call this function only if you plan using surf_host_model_init_compound.
- *
  */
 XBT_PUBLIC(void) surf_network_model_init_Vegas(void);
 
 /** \ingroup SURF_models
  *  \brief The list of all available network model models
  */
-XBT_PUBLIC_DATA(s_surf_model_description_t)
-    surf_network_model_description[];
+XBT_PUBLIC_DATA(s_surf_model_description_t) surf_network_model_description[];
 
 /** \ingroup SURF_models
  *  \brief The storage model
@@ -808,29 +664,23 @@ XBT_PUBLIC_DATA(surf_storage_model_t) surf_storage_model;
 /** \ingroup SURF_models
  *  \brief The host model
  *
- *  Note that when you create an API on top of SURF,
- *  the host model should be the only one you use
- *  because depending on the platform model, the network model and the CPU model
- *  may not exist.
+ *  Note that when you create an API on top of SURF, the host model should be the only one you use
+ *  because depending on the platform model, the network model and the CPU model may not exist.
  */
 XBT_PUBLIC_DATA(surf_host_model_t) surf_host_model;
 
 /** \ingroup SURF_models
  *  \brief The vm model
  *
- *  Note that when you create an API on top of SURF,
- *  the vm model should be the only one you use
- *  because depending on the platform model, the network model and the CPU model
- *  may not exist.
+ *  Note that when you create an API on top of SURF,the vm model should be the only one you use
+ *  because depending on the platform model, the network model and the CPU model may not exist.
  */
 XBT_PUBLIC_DATA(surf_vm_model_t) surf_vm_model;
 
 /** \ingroup SURF_models
  *  \brief Initializes the platform with a compound host model
  *
- *  This function should be called after a cpu_model and a
- *  network_model have been set up.
- *
+ *  This function should be called after a cpu_model and a network_model have been set up.
  */
 XBT_PUBLIC(void) surf_host_model_init_compound(void);
 
@@ -838,49 +688,39 @@ XBT_PUBLIC(void) surf_host_model_init_compound(void);
  *  \brief Initializes the platform with the current best network and cpu models at hand
  *
  *  This platform model separates the host model and the network model.
- *  The host model will be initialized with the model compound, the network
- *  model with the model LV08 (with cross traffic support) and the CPU model with
- *  the model Cas01.
+ *  The host model will be initialized with the model compound, the network model with the model LV08 (with cross
+ *  traffic support) and the CPU model with the model Cas01.
  *  Such model is subject to modification with warning in the ChangeLog so monitor it!
- *
  */
 XBT_PUBLIC(void) surf_host_model_init_current_default(void);
 
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the model L07
  *
- *  With this model, only parallel tasks can be used. Resource sharing
- *  is done by identifying bottlenecks and giving an equal share of
- *  the model to each action.
- *
+ *  With this model, only parallel tasks can be used. Resource sharing is done by identifying bottlenecks and giving an
+ *  equal share of the model to each action.
  */
 XBT_PUBLIC(void) surf_host_model_init_ptask_L07(void);
 
 /** \ingroup SURF_models
  *  \brief The list of all available host model models
  */
-XBT_PUBLIC_DATA(s_surf_model_description_t)
-    surf_host_model_description[];
+XBT_PUBLIC_DATA(s_surf_model_description_t) surf_host_model_description[];
 
 /** \ingroup SURF_models
  *  \brief Initializes the platform with the current best network and cpu models at hand
  *
  *  This platform model seperates the host model and the network model.
- *  The host model will be initialized with the model compound, the network
- *  model with the model LV08 (with cross traffic support) and the CPU model with
- *  the model Cas01.
+ *  The host model will be initialized with the model compound, the network model with the model LV08 (with cross
+ *  traffic support) and the CPU model with the model Cas01.
  *  Such model is subject to modification with warning in the ChangeLog so monitor it!
- *
  */
 XBT_PUBLIC(void) surf_vm_model_init_HL13(void);
 
 /** \ingroup SURF_models
  *  \brief The list of all available vm model models
  */
-XBT_PUBLIC_DATA(s_surf_model_description_t)
-    surf_vm_model_description[];
-
-/*******************************************/
+XBT_PUBLIC_DATA(s_surf_model_description_t) surf_vm_model_description[];
 
 /** \ingroup SURF_models
  *  \brief List of initialized models
@@ -897,32 +737,15 @@ XBT_PUBLIC_DATA(xbt_dynar_t) host_that_restart;
  */
 XBT_PUBLIC_DATA(xbt_dict_t) watched_hosts_lib;
 
-/*******************************************/
-/*** SURF Platform *************************/
-/*******************************************/
-XBT_PUBLIC_DATA(AS_t) surf_AS_get_routing_root(void);
-XBT_PUBLIC_DATA(const char *) surf_AS_get_name(AS_t as);
-XBT_PUBLIC_DATA(AS_t) surf_AS_get_by_name(const char * name);
-XBT_PUBLIC_DATA(xbt_dict_t) surf_AS_get_routing_sons(AS_t as);
-XBT_PUBLIC_DATA(const char *) surf_AS_get_model(AS_t as);
-XBT_PUBLIC_DATA(xbt_dynar_t) surf_AS_get_hosts(AS_t as);
-XBT_PUBLIC_DATA(void) surf_AS_get_graph(AS_t as, xbt_graph_t graph, xbt_dict_t nodes, xbt_dict_t edges);
-XBT_PUBLIC_DATA(AS_t) surf_platf_get_root(routing_platf_t platf);
-XBT_PUBLIC_DATA(e_surf_network_element_type_t) surf_routing_edge_get_rc_type(sg_netcard_t edge);
-
-/*******************************************/
 /*** SURF Globals **************************/
-/*******************************************/
 
 /** \ingroup SURF_simulation
  *  \brief Initialize SURF
  *  \param argc argument number
  *  \param argv arguments
  *
- *  This function has to be called to initialize the common
- *  structures.  Then you will have to create the environment by
- *  calling
- *  e.g. surf_host_model_init_CM02()
+ *  This function has to be called to initialize the common structures. Then you will have to create the environment by
+ *  calling  e.g. surf_host_model_init_CM02()
  *
  *  \see surf_host_model_init_CM02(), surf_host_model_init_compound(), surf_exit()
  */
@@ -940,10 +763,9 @@ XBT_PUBLIC(void) surf_presolve(void);
  *  \param max_date Maximum date to update the simulation to, or -1
  *  \return the elapsed time, or -1.0 if no event could be executed
  *
- *  This function execute all possible events, update the action states
- *  and returns the time elapsed.
- *  When you call execute or communicate on a model, the corresponding actions
- *  are not executed immediately but only when you call surf_solve.
+ *  This function execute all possible events, update the action states  and returns the time elapsed.
+ *  When you call execute or communicate on a model, the corresponding actions are not executed immediately but only
+ *  when you call surf_solve.
  *  Note that the returned elapsed time can be zero.
  */
 XBT_PUBLIC(double) surf_solve(double max_date);
@@ -965,8 +787,7 @@ XBT_PUBLIC(double) surf_get_clock(void);
 XBT_PUBLIC(void) surf_exit(void);
 
 /* Prototypes of the functions that handle the properties */
-XBT_PUBLIC_DATA(xbt_dict_t) current_property_set;       /* the prop set for the currently parsed element (also used in SIMIX) */
-
+XBT_PUBLIC_DATA(xbt_dict_t) current_property_set;// the prop set for the currently parsed element (also used in SIMIX)
 /* The same for model_prop set*/
 XBT_PUBLIC_DATA(xbt_dict_t) current_model_property_set;
 
@@ -979,10 +800,8 @@ XBT_PUBLIC_DATA(xbt_dict_t) traces_set_list;
 XBT_PUBLIC(xbt_dict_t) get_as_router_properties(const char* name);
 
 /*
- * Returns the initial path. On Windows the initial path is
- * the current directory for the current process in the other
- * case the function returns "./" that represents the current
- * directory on Unix/Linux platforms.
+ * Returns the initial path. On Windows the initial path is the current directory for the current process in the other
+ * case the function returns "./" that represents the current directory on Unix/Linux platforms.
  */
 const char *__surf_get_initial_path(void);
 
@@ -1001,13 +820,6 @@ void instr_new_value_for_user_state_type (const char *_typename, const char *val
 int instr_platform_traced (void);
 xbt_graph_t instr_routing_platform_graph (void);
 void instr_routing_platform_graph_export_graphviz (xbt_graph_t g, const char *filename);
-
-/********** Routing **********/
-void routing_AS_begin(sg_platf_AS_cbarg_t AS);
-void routing_AS_end(void);
-surf_NetCard* routing_add_host(surf_As* as, sg_platf_host_cbarg_t host);
-void routing_cluster_add_backbone(void* bb);
-surf_As* routing_get_current();
 
 SG_END_DECL()
 #endif                          /* _SURF_SURF_H */

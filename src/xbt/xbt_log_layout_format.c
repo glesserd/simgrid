@@ -6,7 +6,7 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
-#include "src/portable.h"       /* execinfo when available */
+#include "src/internal_config.h"       /* execinfo when available */
 #include "xbt/synchro_core.h"   /* xbt_thread_self_name */
 #include "src/xbt/ex_interface.h"
 #include "xbt/sysdep.h"
@@ -15,6 +15,10 @@
 #include "simgrid/simix.h"      /* SIMIX_host_self_get_name */
 #include "surf/surf.h"
 #include <stdio.h>
+
+#if HAVE_EXECINFO_H
+#  include <execinfo.h> /* Function backtrace */
+#endif
 
 extern const char *xbt_log_priority_names[8];
 
@@ -73,9 +77,7 @@ static double format_begin_of_time = -1;
 #define show_int(data)    show_it(data, "d")
 #define show_double(data) show_it(data, "f")
 
-static int xbt_log_layout_format_doit(xbt_log_layout_t l,
-                                      xbt_log_event_t ev,
-                                      const char *msg_fmt)
+static int xbt_log_layout_format_doit(xbt_log_layout_t l, xbt_log_event_t ev, const char *msg_fmt)
 {
   char *p = ev->buffer;
   int rem_size = ev->buffer_size;
@@ -119,8 +121,7 @@ static int xbt_log_layout_format_doit(xbt_log_layout_t l,
         length = strtol(q, &q, 10);
         goto handle_modifier;
       case 'c':                 /* category name; LOG4J compliant
-                                   should accept a precision postfix to show the
-                                   hierarchy */
+                                   should accept a precision postfix to show the hierarchy */
         show_string(ev->cat->name);
         break;
       case 'p':                 /* priority name; LOG4J compliant */
@@ -156,7 +157,7 @@ static int xbt_log_layout_format_doit(xbt_log_layout_t l,
         break;
       case 'b':                 /* backtrace; called %throwable in LOG4J */
       case 'B':         /* short backtrace; called %throwable{short} in LOG4J */
-#if defined(HAVE_EXECINFO_H) && defined(HAVE_POPEN) && defined(ADDR2LINE)
+#if HAVE_EXECINFO_H && HAVE_POPEN && defined(ADDR2LINE)
         {
           xbt_ex_t e;
 

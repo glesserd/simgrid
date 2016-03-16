@@ -7,19 +7,38 @@ SimGrid (3.13) UNRELEASED; urgency=low
      - model-check/sparse-checkpoint -> model-check/sparse_checkpoint
      - smpi/async_small_thres        -> smpi/async_small_thresh
      - smpi/send_is_detached_thres   -> smpi/send_is_detached_thresh 
- 
+
    - Removed Lua simulation bindings (switch to C or Java for that).
      Lua can still be used to describe platforms
-   - Removed Java kernel plugins.
+   - Removed Java kernel plug-ins.
      Will be reintroduced after the ongoing major internals reorg.
- 
+   - In SimDag 
+      - the SD_application_reinit function was removed. It was a noop for a while. 
+      - The ACCESS_MODE of SD_workstation has been removed. This feature was not really usable and should soon be 
+        replaced by a more flexible mechanism.
+      - The following functions thus do not exist anymore
+         - SD_workstation_get_access_mode
+         - SD_workstation_set_access_mode
+         - SD_workstation_get_current_task
+      - Basic estimation functions have been removed but can easily be replaced
+        - SD_route_get_communication_time => SG_route_get_latency() + amount / SD_route_get_bandwidth()
+        - SD_workstation_get_computation_time => amount / sg_host_speed()
+   - In Java
+      - VM.setBound(int load) is now VM.setBound(double bound) to meet the MSG semantics. Use VM.getSpeed()*load/100 for the legacy behavior.
+   - In CMake
+      - option enable_tracing was removed. It was not doing anything since a while.
+
  XML platforms:
  * Switch to platform v4 format.
    - Rename from 'power' to 'speed' the attributes describing the amount of
      flops that a <host>, <peer>, <cluster> or <cabinet> can deliver per second.
    - In <trace_connect>, attribute kind="POWER" is now kind="SPEED".
-   - The DOCTYPE points to the right URL (this file):
+   - In <host> and <link>, attributes availability and state are gone.
+     It was redundent with state and availability traces, and with peak values.
+   - Kill <gpu>. Was not doing anything.
+   - The DOCTYPE points to the right URL:
      http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd
+     (the file at this address now documents the changelog since its v1)
    - A warning is emitted for unit-less values (they are still accepted).
      - speed. Default: 'f' or 'flops'. Also defined:
         'Yf',         'Zf',         'Ef',       'Pf',        'Tf',        'Gf',        'Mf',        'kf'
@@ -34,13 +53,20 @@ SimGrid (3.13) UNRELEASED; urgency=low
    tools/sg_xml_unit_converter.py may help (but it's just a warning and will probably ever be).
 
  S4U
- * s4u::Host is now the prefered public interface to the Host features.
+ * s4u::Host is now the preferred public interface to the Host features.
    sg_host_* functions are C bindings to the exact same behavior
    MSG_host_* and SD_workstation_* are #define to the sg_host_* ones
 
  MSG
  * Kill all deprecated functions (the ones you had when declaring MSG_DEPRECATED). 
    They were deprecated since a few years, and probably did not even compile anymore.
+
+ SimDag
+ * The API has been profoundly modified to directly use the core objects instead of redefining its own. 
+   SD_Workstation_t and SD_link_t are now sg_host_t and sg_link_t respectively.
+   Some functions have also been renamed for consistency. Backward compatibility is maintained, but users are 
+   encouraged to update their codes. A list of the modified functions can be found at the end of 
+   include/simgrid/simdag.h
 
  Simix
  * simgrid::simix::kernel() is the closure callback. It ensures that
@@ -52,12 +78,15 @@ SimGrid (3.13) UNRELEASED; urgency=low
 
  SMPI
  * Remove old default barrier/bcast buggy algorithms (see #18407)
- * Various bugfixes to handle more codes
+ * Various bug fixes to handle more codes
 
  XBT
  * Kill the setset data container: MC don't use it anymore.
  * Kill the queue data container: it made more sense with GRAS.
  * Kill the xbt_peer_t data type: it's useless without GRAS.
+ * Kill rm_cb feature of config sets: it was never useful.
+ * Kill graphxml parsing feature. It was not used.
+ * Kill the deprecated code protected by XBT_USE_DEPRECATED
  * New functions:
    - xbt_dynar_sort_strings(), when the content is char*
    - xbt_str_parse_int / xbt_str_parse_double, wrapping strtol/strtod
@@ -624,6 +653,30 @@ SimGrid (3.8) stable; urgency=low
 
  -- Thu Oct 25 17:30:06 CEST 2012 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
 
+SimGrid-java (3.8.1) stable; urgency=low
+
+ * New module: org.simgrid.trace.Trace (SimGrid trace bindings)
+   Warning: all methods are visible, but only some of them are
+   implemented so far. Check the source (src/jtrace.c)
+   for further information.
+ * New module: org.simgrid.msg.File (SimGrid File management functions)
+ * New Module: org.simgrid.msg.VM (SimGrid interface to mimick IAAS clouds)
+ * Change the meaning of Process.restart: now restart the process from
+   the begining, like MSG_process_restart in C.
+ * Add Process.setAutoRestart: handling of process restart when failed
+   host comes back.
+ * Add Process.getProperty, Host.getProperty, Host.getProperty: allows
+   you to retrieve the properties of the processes/hosts
+ * Deprecate Msg.clean(): you can just forget about it now.
+ * New function Process.getCount(), that only works when compiling
+   with the not yet released version 3.9 of the C library.
+
+ * New context factory based on Coroutines. It mandates a modified JVM
+   but then, the simulations run about five times faster, and there is
+   no limit to the amount of processes (beside of the available memory).
+
+ -- 2012-12-04 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
+
 SimGrid (3.7.1) stable; urgency=low
 
  MSG:
@@ -654,6 +707,38 @@ SimGrid (3.7.1) stable; urgency=low
  feature, any help would be really welcome.
 
  -- Thu Jun 7 2012 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
+
+
+SimGrid-java (3.7.1) stable; urgency=low
+
+ The "Java aint got to be bloated and slow" release
+
+ Major cleanups:
+ * Various internal cleanups and performance improvement
+   Simulations are expected to run up to twice faster or so
+ * Make Process.kill(process) an instance method, not a static one
+ * User processes are not java.lang.Thread subclasses.
+   This breaks the compatibility (sorry), but previous API was
+   brain-dead, making it impossible to have non-trivial
+   initializations in the process constructor.
+ * Require a full constructor per Process sub-class.
+   Kinda breaks the compatibility (sorry), but this allows a much more
+   efficient way to launch the processes at simulation startup.
+ * Do not embeed our version of semaphores, java 1.5 can be considered
+   as sufficiently prevalent for us to not dupplicate its features.
+ * Lot of bug fixes
+
+ Extend the API:
+ * Add examples for almost every part of the API
+   We spotted and fixed a lot of bugs in the process
+
+ * New module: asynchronous communication API
+ * New function: Process.sleep()
+   It takes milliseconds as argument, just as java.lang.Thread.sleep()
+ * New module: org.simgrid.msg.Mutex (SimGrid mutexes)
+ * New module: org.simgrid.msg.RngStream (RngStreams random generators)
+
+ -- 2012-06-12 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
 
 SimGrid (3.7) stable; urgency=low
 
@@ -800,6 +885,7 @@ SimGrid (3.7) stable; urgency=low
 
  -- Tue May 15 11:30:19 UTC 2012 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
 
+
 SimGrid (3.6.2) stable; urgency=low
 
  The "Not coding new stuff allows to polish old things" release.
@@ -854,6 +940,13 @@ SimGrid (3.6.1) stable; urgency=low
  * New macro: CATCH_ANONYMOUS, which is like CATCH(e) but without argument.
 
  -- Mon Jun 27 13:59:03 CEST 2011 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
+
+SimGrid-java (3.6) unstable; urgency=low
+
+ * Initial release.
+ * Split of every thing from simgrid v3.5 into a separate package.
+
+ -- 2011-10-05 Da SimGrid team <simgrid-devel@lists.gforge.inria.fr>
 
 SimGrid (3.6) stable; urgency=medium
 

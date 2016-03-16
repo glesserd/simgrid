@@ -29,7 +29,6 @@ xbt_fifo_t xbt_fifo_new(void)
   return fifo;
 }
 
-
 /** Destructor
  * \param l poor victim
  *
@@ -244,7 +243,6 @@ int xbt_fifo_remove(xbt_fifo_t l, void *t)
 {
   xbt_fifo_item_t current, current_next;
 
-
   for (current = l->head; current; current = current_next) {
     current_next = current->next;
     if (current->content != t)
@@ -257,7 +255,6 @@ int xbt_fifo_remove(xbt_fifo_t l, void *t)
   }
   return 0;
 }
-
 
 /**
  * \param l
@@ -337,18 +334,16 @@ int xbt_fifo_is_in(xbt_fifo_t f, void *content)
  * This function allows to search an item with a user provided function instead
  * of the pointer comparison used elsewhere in this module. Assume for example that you have a fifo of
  * strings. You cannot use xbt_fifo_remove() to remove, say, "TOTO" from it because internally, xbt_fifo_remove()
- * will do something like "if (item->content == "toto"), then remove it". And the pointer to the item content
- * and the pointer to "toto" will never match. As a solution, the current function provides a way to search elements
- * that are semanticaly equivalent instead of only syntaxically. So, removing "Toto" from a fifo can be
- * achieved this way:
+ * will do something like "if (item->content == "toto"), then remove it". And the pointer to the item content and the
+ * pointer to "toto" will never match. As a solution, the current function provides a way to search elements that are
+ * semantically equivalent instead of only syntactically. So, removing "Toto" from a fifo can be achieved this way:
  *
  *  @verbatim
 int my_comparison_function(void *searched, void *seen) {
   return !strcmp(searched, seen);
 }
 
-  xbt_fifo_remove_item(fifo,
-                       xbt_fifo_search_item(fifo, my_comparison_function, "Toto"));
+  xbt_fifo_remove_item(fifo, xbt_fifo_search_item(fifo, my_comparison_function, "Toto"));
 @endverbatim
  *
  * \param f a fifo list
@@ -364,7 +359,6 @@ xbt_fifo_item_t xbt_fifo_search_item(xbt_fifo_t f, int_f_pvoid_pvoid_t cmp_fun, 
     item = item->next;
   }
   return NULL;
-
 }
 
 /**
@@ -420,14 +414,14 @@ static void fifo_item_mallocator_reset_f(void *item)
 /** Constructor
  * \return a new bucket
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_new_item(void)
+inline xbt_fifo_item_t xbt_fifo_new_item(void)
 {
   return xbt_mallocator_get(item_mallocator);
 }
 
 /** \deprecated Use #xbt_fifo_new_item instead.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_newitem(void)
+inline xbt_fifo_item_t xbt_fifo_newitem(void)
 {
   XBT_CWARN(xbt_fifo, "This function is deprecated. Use xbt_fifo_new_item.");
   return xbt_fifo_new_item();
@@ -439,7 +433,7 @@ XBT_INLINE xbt_fifo_item_t xbt_fifo_newitem(void)
  *
  * stores \a v in \a i.
  */
-XBT_INLINE void xbt_fifo_set_item_content(xbt_fifo_item_t i, void *v)
+inline void xbt_fifo_set_item_content(xbt_fifo_item_t i, void *v)
 {
   xbt_fifo_setItemcontent(i, v);
 }
@@ -448,7 +442,7 @@ XBT_INLINE void xbt_fifo_set_item_content(xbt_fifo_item_t i, void *v)
  * \param i a bucket
  * \return the object stored \a i.
  */
-XBT_INLINE void *xbt_fifo_get_item_content(xbt_fifo_item_t i)
+inline void *xbt_fifo_get_item_content(xbt_fifo_item_t i)
 {
   return xbt_fifo_getItemcontent(i);
 }
@@ -458,7 +452,7 @@ XBT_INLINE void *xbt_fifo_get_item_content(xbt_fifo_item_t i)
  *
  * Free the bucket but does not modifies the object (if any) that was stored in it.
  */
-XBT_INLINE void xbt_fifo_free_item(xbt_fifo_item_t b)
+inline void xbt_fifo_free_item(xbt_fifo_item_t b)
 {
   xbt_mallocator_release(item_mallocator, b);
   return;
@@ -467,7 +461,7 @@ XBT_INLINE void xbt_fifo_free_item(xbt_fifo_item_t b)
 /** Destructor
  * \deprecated Use #xbt_fifo_free_item instead.
  */
-XBT_INLINE void xbt_fifo_freeitem(xbt_fifo_item_t b)
+inline void xbt_fifo_freeitem(xbt_fifo_item_t b)
 {
   XBT_CWARN(xbt_fifo, "This function is deprecated. Use xbt_fifo_free_item.");
   xbt_fifo_free_item(b);
@@ -478,7 +472,7 @@ XBT_INLINE void xbt_fifo_freeitem(xbt_fifo_item_t b)
  * \param f a list
  * \return the number of buckets in \a f.
  */
-XBT_INLINE int xbt_fifo_size(xbt_fifo_t f)
+inline int xbt_fifo_size(xbt_fifo_t f)
 {
   return f->count;
 }
@@ -489,7 +483,7 @@ XBT_INLINE int xbt_fifo_size(xbt_fifo_t f)
  *
  * Returns NULL if the list is empty.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_get_first_item(xbt_fifo_t l)
+inline xbt_fifo_item_t xbt_fifo_get_first_item(xbt_fifo_t l)
 {
   return l->head;
 }
@@ -500,14 +494,14 @@ XBT_INLINE xbt_fifo_item_t xbt_fifo_get_first_item(xbt_fifo_t l)
  *
  * Returns NULL if the list is empty.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_get_last_item(xbt_fifo_t l)
+inline xbt_fifo_item_t xbt_fifo_get_last_item(xbt_fifo_t l)
 {
   return l->tail;
 }
 
 /** \deprecated Use #xbt_fifo_get_first_item instead.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_getFirstItem(xbt_fifo_t l)
+inline xbt_fifo_item_t xbt_fifo_getFirstItem(xbt_fifo_t l)
 {
   XBT_CWARN(xbt_fifo, "This function is deprecated. Use xbt_fifo_get_first_item.");
   return xbt_fifo_get_first_item(l);
@@ -519,7 +513,7 @@ XBT_INLINE xbt_fifo_item_t xbt_fifo_getFirstItem(xbt_fifo_t l)
  *
  * Returns NULL if \a i is the tail of the list.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_get_next_item(xbt_fifo_item_t i)
+inline xbt_fifo_item_t xbt_fifo_get_next_item(xbt_fifo_item_t i)
 {
   if (i)
     return i->next;
@@ -540,7 +534,7 @@ xbt_fifo_item_t xbt_fifo_getNextItem(xbt_fifo_item_t i)
  *
  * Returns NULL if \a i is the head of the list.
  */
-XBT_INLINE xbt_fifo_item_t xbt_fifo_get_prev_item(xbt_fifo_item_t i)
+inline xbt_fifo_item_t xbt_fifo_get_prev_item(xbt_fifo_item_t i)
 {
   if (i)
     return i->prev;
@@ -561,10 +555,8 @@ xbt_fifo_item_t xbt_fifo_getPrevItem(xbt_fifo_item_t i)
  */
 void xbt_fifo_preinit(void)
 {
-  item_mallocator = xbt_mallocator_new(65536,
-                                       fifo_item_mallocator_new_f,
-                                       fifo_item_mallocator_free_f,
-                                       fifo_item_mallocator_reset_f);
+  item_mallocator = xbt_mallocator_new(65536, fifo_item_mallocator_new_f,
+                                       fifo_item_mallocator_free_f, fifo_item_mallocator_reset_f);
 }
 
 void xbt_fifo_postexit(void)
@@ -574,5 +566,4 @@ void xbt_fifo_postexit(void)
     item_mallocator = NULL;
   }
 }
-
 /* @} */

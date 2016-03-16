@@ -38,7 +38,7 @@ public:
   void resume();
 };
 
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
 class BoostParallelContext : public BoostContext {
 public:
   BoostParallelContext(std::function<void()> code,
@@ -55,7 +55,7 @@ public:
 
 bool                BoostContext::parallel_        = false;
 xbt_parmap_t        BoostContext::parmap_          = nullptr;
-unsigned long       BoostContext::threads_working_ = 0;
+uintptr_t           BoostContext::threads_working_ = 0;
 xbt_os_thread_key_t BoostContext::worker_id_key_;
 unsigned long       BoostContext::process_index_   = 0;
 BoostContext*       BoostContext::maestro_context_ = nullptr;
@@ -66,7 +66,7 @@ BoostContextFactory::BoostContextFactory()
 {
   BoostContext::parallel_ = SIMIX_context_is_parallel();
   if (BoostContext::parallel_) {
-#ifndef HAVE_THREAD_CONTEXTS
+#if !HAVE_THREAD_CONTEXTS
     xbt_die("No thread support for parallel context execution");
 #else
     int nthreads = SIMIX_context_get_nthreads();
@@ -81,7 +81,7 @@ BoostContextFactory::BoostContextFactory()
 
 BoostContextFactory::~BoostContextFactory()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   if (BoostContext::parmap_) {
     xbt_parmap_destroy(BoostContext::parmap_);
     BoostContext::parmap_ = nullptr;
@@ -95,7 +95,7 @@ smx_context_t BoostContextFactory::create_context(std::function<void()>  code,
 {
   BoostContext* context = nullptr;
   if (BoostContext::parallel_)
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
     context = this->new_context<BoostParallelContext>(
       std::move(code), cleanup_func, process);
 #else
@@ -109,7 +109,7 @@ smx_context_t BoostContextFactory::create_context(std::function<void()>  code,
 
 void BoostContextFactory::run_all()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   if (BoostContext::parallel_) {
     BoostContext::threads_working_ = 0;
     xbt_parmap_apply(BoostContext::parmap_,
@@ -232,7 +232,7 @@ void BoostSerialContext::stop()
 
 // BoostParallelContext
 
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
 
 void BoostParallelContext::suspend()
 {
@@ -245,8 +245,8 @@ void BoostParallelContext::suspend()
   }
   else {
     XBT_DEBUG("No more processes to run");
-    unsigned long worker_id =
-      (unsigned long) xbt_os_thread_get_specific(worker_id_key_);
+    uintptr_t worker_id =
+      (uintptr_t) xbt_os_thread_get_specific(worker_id_key_);
     next_context = static_cast<BoostParallelContext*>(
       workers_context_[worker_id]);
   }
@@ -269,7 +269,7 @@ void BoostParallelContext::stop()
 
 void BoostParallelContext::resume()
 {
-  unsigned long worker_id = __sync_fetch_and_add(&threads_working_, 1);
+  uintptr_t worker_id = __sync_fetch_and_add(&threads_working_, 1);
   xbt_os_thread_set_specific(worker_id_key_, (void*) worker_id);
 
   BoostParallelContext* worker_context =
@@ -290,6 +290,7 @@ void BoostParallelContext::resume()
 
 XBT_PRIVATE ContextFactory* boost_factory()
 {
+  XBT_VERB("Using Boost contexts. Welcome to the 21th century.");
   return new BoostContextFactory();
 }
 

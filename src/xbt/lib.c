@@ -10,13 +10,11 @@
 #include <xbt/log.h>
 #include <xbt/lib.h>
 
-XBT_LOG_NEW_DEFAULT_SUBCATEGORY(xbt_lib, xbt,
-                                "A dict with keys of type (name, level)");
+XBT_LOG_NEW_DEFAULT_SUBCATEGORY(xbt_lib, xbt, "A dict with keys of type (name, level)");
 
 xbt_lib_t xbt_lib_new(void)
 {
-  xbt_lib_t lib;
-  lib = xbt_new(s_xbt_lib_t, 1);
+  xbt_lib_t lib  = xbt_new(s_xbt_lib_t, 1);
   lib->dict = xbt_dict_new_homogeneous(xbt_free_f);
   lib->levels = 0;
   lib->free_f = NULL;
@@ -46,10 +44,8 @@ void xbt_lib_free(xbt_lib_t *plib)
 int xbt_lib_add_level(xbt_lib_t lib, void_f_pvoid_t free_f)
 {
   XBT_DEBUG("xbt_lib_add_level");
-  xbt_assert(xbt_dict_is_empty(lib->dict),
-             "Lib is not empty, cannot add a level");
-  lib->free_f = xbt_realloc(lib->free_f,
-                            sizeof(void_f_pvoid_t) * (lib->levels + 1));
+  xbt_assert(xbt_dict_is_empty(lib->dict), "Lib is not empty, cannot add a level");
+  lib->free_f = xbt_realloc(lib->free_f, sizeof(void_f_pvoid_t) * (lib->levels + 1));
   lib->free_f[lib->levels] = free_f;
   return lib->levels++;
 }
@@ -63,8 +59,7 @@ void xbt_lib_set(xbt_lib_t lib, const char *key, int level, void *obj)
     xbt_dict_set(lib->dict, key, elts, NULL);
   }
   if (elts[level]) {
-    XBT_DEBUG("Replace %p by %p element under key '%s:%d'",
-              elts[level], obj, key, level);
+    XBT_DEBUG("Replace %p by %p element under key '%s:%d'", elts[level], obj, key, level);
     if (lib->free_f[level])
       lib->free_f[level](elts[level]);
   }
@@ -90,8 +85,7 @@ void xbt_lib_unset(xbt_lib_t lib, const char *key, int level, int invoke_callbac
 
   /* check if there still remains any elements of this key */
   int empty = 1;
-  int i;
-  for (i = 0; i < lib->levels && empty; i++) {
+  for (int i = 0; i < lib->levels && empty; i++) {
      if (elts[i] != NULL)
        empty = 0;
   }

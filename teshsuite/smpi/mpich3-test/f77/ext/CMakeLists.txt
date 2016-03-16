@@ -6,7 +6,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite AND SMPI_FORTRAN)
     set(CMAKE_Fortran_COMPILER "${CMAKE_BINARY_DIR}/smpi_script/bin/smpiff")
   endif()
 
-  set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
   include_directories(BEFORE "${CMAKE_HOME_DIRECTORY}/include/smpi")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../include/")
 
@@ -17,17 +16,8 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite AND SMPI_FORTRAN)
 #  target_link_libraries(allocmemf simgrid mtest_f77)
 #  target_link_libraries(c2f2cf simgrid mtest_f77)
 #  target_link_libraries(ctypesinf simgrid mtest_f77)
-
 endif()
 
-set(tesh_files
-  ${tesh_files}
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  PARENT_SCOPE
-  )
 set(examples_src
   ${examples_src}
   ${CMAKE_CURRENT_SOURCE_DIR}/add1size.h
@@ -37,14 +27,8 @@ set(examples_src
   ${CMAKE_CURRENT_SOURCE_DIR}/c2fmult.c
   ${CMAKE_CURRENT_SOURCE_DIR}/ctypesfromc.c
   ${CMAKE_CURRENT_SOURCE_DIR}/ctypesinf.f
-  PARENT_SCOPE
-  )
-set(bin_files
-  ${bin_files}
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)
 set(txt_files
   ${txt_files}
   ${CMAKE_CURRENT_SOURCE_DIR}/testlist
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)

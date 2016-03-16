@@ -177,12 +177,8 @@ __ex_mctx_struct} __ex_mctx_t;
  * cleanup that needs to be done regardless of whether an exception is
  * caught. Bypassing these steps will break the exception handling facility.
  * The symptom are likely to be a segfault at the next exception raising point,  
- * ie far away from the point where you did the mistake. If you suspect
- * that kind of error in your code, have a look at the little script
- * <tt>tools/xbt_exception_checker</tt> in the CVS. It extracts all the TRY
- * blocks from a set of C files you give it and display them (and only
- * them) on the standard output. You can then grep for the forbidden 
- * keywords on that output.
+ * ie far away from the point where you did the mistake. Finding the problem can 
+ * reveal challenging, unfortunately.
  *   
  * The CLEANUP and CATCH blocks are regular ISO-C language statement
  * blocks without any restrictions. You are even allowed to throw (and, in the
@@ -439,7 +435,7 @@ XBT_PUBLIC( void )__xbt_ex_terminate_default(xbt_ex_t * e);
   _throw_ctx->exception.pid      = xbt_getpid();                        \
   _throw_ctx->exception.file     = (char*)__FILE__;                     \
   _throw_ctx->exception.line     = __LINE__;                            \
-  _throw_ctx->exception.func     = (char*)_XBT_FUNCTION;                \
+  _throw_ctx->exception.func     = (char*)__func__;                     \
   _throw_ctx->exception.bt_strings = NULL;                              \
   xbt_backtrace_current((xbt_ex_t *)&(_throw_ctx->exception));
 
@@ -461,9 +457,9 @@ XBT_PUBLIC( void )__xbt_ex_terminate_default(xbt_ex_t * e);
 #define THROW_IMPOSSIBLE \
   THROWF(unknown_error, 0, "The Impossible Did Happen (yet again)")
 #define THROW_UNIMPLEMENTED \
-  THROWF(unknown_error, 0, "Function %s unimplemented",_XBT_FUNCTION)
+  THROWF(unknown_error, 0, "Function %s unimplemented",__func__)
 #define THROW_DEADCODE \
-  THROWF(unknown_error, 0, "Function %s was supposed to be DEADCODE, but it's not",_XBT_FUNCTION)
+  THROWF(unknown_error, 0, "Function %s was supposed to be DEADCODE, but it's not",__func__)
 
 #define DIE_IMPOSSIBLE xbt_die("The Impossible Did Happen (yet again)")
 
@@ -499,29 +495,6 @@ XBT_PUBLIC(void) xbt_backtrace_current(xbt_ex_t * e);
 XBT_PUBLIC(void) xbt_backtrace_display(xbt_ex_t * e);
 /** @brief Get current backtrace with libunwind */
 XBT_PUBLIC(int) xbt_libunwind_backtrace(void *bt[XBT_BACKTRACE_SIZE], int size);
-
-#ifdef XBT_USE_DEPRECATED
-
-/* Kept for backward compatibility. */
-
-#define THROW0(c, v, m) \
-  do { if (m) THROWF(c, v, m); else THROW(c, v); } while (0)
-#define THROW1(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW2(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW3(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW4(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW5(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW6(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-#define THROW7(c, v, ...)       THROWF(c, v, __VA_ARGS__)
-
-#define RETHROW0(...)           RETHROWF(__VA_ARGS__)
-#define RETHROW1(...)           RETHROWF(__VA_ARGS__)
-#define RETHROW2(...)           RETHROWF(__VA_ARGS__)
-#define RETHROW3(...)           RETHROWF(__VA_ARGS__)
-#define RETHROW4(...)           RETHROWF(__VA_ARGS__)
-#define RETHROW5(...)           RETHROWF(__VA_ARGS__)
-
-#endif
 
 SG_END_DECL()
 

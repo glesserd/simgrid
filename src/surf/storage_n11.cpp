@@ -16,7 +16,7 @@ static xbt_swag_t storage_running_action_set_that_does_not_need_being_checked = 
  * CallBacks *
  *************/
 
-static XBT_INLINE void routing_storage_type_free(void *r)
+static inline void routing_storage_type_free(void *r)
 {
   storage_type_t stype = (storage_type_t) r;
   free(stype->model);
@@ -28,7 +28,7 @@ static XBT_INLINE void routing_storage_type_free(void *r)
   free(stype);
 }
 
-static XBT_INLINE void surf_storage_resource_free(void *r)
+static inline void surf_storage_resource_free(void *r)
 {
   // specific to storage
   simgrid::surf::Storage *storage = static_cast<simgrid::surf::Storage*>(r);
@@ -36,7 +36,7 @@ static XBT_INLINE void surf_storage_resource_free(void *r)
   delete storage;
 }
 
-static XBT_INLINE void routing_storage_host_free(void *r)
+static inline void routing_storage_host_free(void *r)
 {
   xbt_dynar_t dyn = (xbt_dynar_t) r;
   xbt_dynar_free(&dyn);
@@ -70,8 +70,8 @@ StorageN11Model::StorageN11Model() : StorageModel() {
 
   storage_running_action_set_that_does_not_need_being_checked =
       xbt_swag_new(xbt_swag_offset(*action, p_stateHookup));
-  if (!p_maxminSystem) {
-    p_maxminSystem = lmm_system_new(storage_selective_update);
+  if (!maxminSystem_) {
+    maxminSystem_ = lmm_system_new(storage_selective_update);
   }
 }
 
@@ -80,6 +80,7 @@ StorageN11Model::~StorageN11Model(){
   storage_running_action_set_that_does_not_need_being_checked = NULL;
 }
 
+#include "src/surf/xml/platf.hpp" // FIXME: move that back to the parsing area
 Storage *StorageN11Model::createStorage(const char* id, const char* type_id,
     const char* content_name, const char* content_type, xbt_dict_t properties,
     const char* attach)
@@ -98,7 +99,7 @@ Storage *StorageN11Model::createStorage(const char* id, const char* type_id,
   double Bconnection   = surf_parse_get_bandwidth((char*)xbt_dict_get(storage_type->model_properties, "Bconnection"),
       "property Bconnection, storage",type_id);
 
-  Storage *storage = new StorageN11(this, id, properties, p_maxminSystem,
+  Storage *storage = new StorageN11(this, id, properties, maxminSystem_,
       Bread, Bwrite, Bconnection, type_id, (char *)content_name,
       xbt_strdup(content_type), storage_type->size, (char *) attach);
   storageCreatedCallbacks(storage);
@@ -126,7 +127,7 @@ double StorageN11Model::next_occuring_event(double /*now*/)
   StorageAction *write_action;
 
   double min_completion = shareResourcesMaxMin(getRunningActionSet(),
-      p_maxminSystem, lmm_solve);
+      maxminSystem_, lmm_solve);
 
   double rate;
   // Foreach disk

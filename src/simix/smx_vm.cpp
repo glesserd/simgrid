@@ -5,12 +5,9 @@
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
 #include "smx_private.h"
-#include "xbt/sysdep.h"
-#include "xbt/log.h"
-#include "xbt/dict.h"
 #include "mc/mc.h"
-#include "src/surf/host_interface.hpp"
 #include "src/surf/virtual_machine.hpp"
+#include "src/surf/HostImpl.hpp"
 
 //If you need to log some stuffs, just uncomment these two lines and uses XBT_DEBUG for instance
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(simix_vm, simix, "Logging specific to SIMIX (vms)");
@@ -40,7 +37,7 @@ sg_host_t SIMIX_vm_create(const char *name, sg_host_t ind_phys_host)
 static long host_get_ramsize(sg_host_t vm, int *overcommit)
 {
   s_vm_params_t params;
-  surf_host_get_params(vm, &params);
+  vm->extension<simgrid::surf::HostImpl>()->getParams(&params);
 
   if (overcommit)
     *overcommit = params.overcommit;
@@ -63,12 +60,12 @@ static int __can_be_started(sg_host_t vm)
   }
 
   if (pm_overcommit) {
-    XBT_INFO("%s allows memory overcommit.", sg_host_get_name(pm));
+    XBT_VERB("%s allows memory overcommit.", sg_host_get_name(pm));
     return 1;
   }
 
   long total_ramsize_of_vms = 0;
-  xbt_dynar_t dyn_vms = surf_host_get_vms(pm);
+  xbt_dynar_t dyn_vms = pm->extension<simgrid::surf::HostImpl>()->getVms();
   {
     unsigned int cursor = 0;
     sg_host_t another_vm;
@@ -86,7 +83,6 @@ static int __can_be_started(sg_host_t vm)
     return 0;
   }
 
-  xbt_dynar_free(&dyn_vms);
   return 1;
 }
 
@@ -94,7 +90,7 @@ void SIMIX_vm_start(sg_host_t ind_vm)
 {
   if (__can_be_started(ind_vm))
     static_cast<simgrid::surf::VirtualMachine*>(
-      ind_vm->extension<simgrid::surf::Host>()
+      ind_vm->extension<simgrid::surf::HostImpl>()
     )->setState(SURF_VM_STATE_RUNNING);
   else
     THROWF(vm_error, 0, "The VM %s cannot be started", sg_host_get_name(ind_vm));
@@ -104,7 +100,7 @@ void SIMIX_vm_start(sg_host_t ind_vm)
 e_surf_vm_state_t SIMIX_vm_get_state(sg_host_t ind_vm)
 {
   return static_cast<simgrid::surf::VirtualMachine*>(
-    ind_vm->extension<simgrid::surf::Host>()
+    ind_vm->extension<simgrid::surf::HostImpl>()
   )->getState();
 }
 
@@ -349,7 +345,7 @@ void SIMIX_vm_shutdown(sg_host_t ind_vm, smx_process_t issuer)
 
   /* FIXME: we may have to do something at the surf layer, e.g., vcpu action */
   static_cast<simgrid::surf::VirtualMachine*>(
-    ind_vm->extension<simgrid::surf::Host>()
+    ind_vm->extension<simgrid::surf::HostImpl>()
   )->setState(SURF_VM_STATE_CREATED);
 }
 

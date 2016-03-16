@@ -1,44 +1,13 @@
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
+foreach(x mxn-all2all mxn-independent_comm mxn-scatter)
+  add_executable       (${x} ${x}.c)
+  target_link_libraries(${x} simgrid)
 
-add_executable(test_intra_all2all test_intra_all2all.c)
-add_executable(test_intra_independent_comm test_intra_independent_comm.c)
-add_executable(test_intra_scatter test_intra_scatter.c)
+  set(tesh_files    ${tesh_files}    ${CMAKE_CURRENT_SOURCE_DIR}/${x}.tesh)
+  set(teshsuite_src ${teshsuite_src} ${CMAKE_CURRENT_SOURCE_DIR}/${x}.c)
 
-### Add definitions for compile
-if(NOT WIN32)
-  target_link_libraries(test_intra_all2all simgrid m pthread )
-  target_link_libraries(test_intra_independent_comm simgrid m pthread )
-  target_link_libraries(test_intra_scatter simgrid m pthread )
-else()
-  target_link_libraries(test_intra_all2all simgrid)
-  target_link_libraries(test_intra_independent_comm simgrid)
-  target_link_libraries(test_intra_scatter simgrid)
-endif()
+  ADD_TESH(tesh-simdag-${x} --setenv srcdir=${CMAKE_HOME_DIRECTORY}/teshsuite --cd ${CMAKE_BINARY_DIR}/teshsuite ${CMAKE_HOME_DIRECTORY}/teshsuite/simdag/network/mxn/${x}.tesh)
+endforeach()
 
-set(tesh_files
-  ${tesh_files}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_all2all.tesh
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_independent_comm.tesh
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_scatter.tesh
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  ${CMAKE_CURRENT_SOURCE_DIR}/platform_4p_1switch.xml
-  PARENT_SCOPE
-  )
-set(teshsuite_src
-  ${teshsuite_src}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_all2all.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_independent_comm.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_intra_scatter.c
-  PARENT_SCOPE
-  )
-set(bin_files
-  ${bin_files}
-  PARENT_SCOPE
-  )
-set(txt_files
-  ${txt_files}
-  PARENT_SCOPE
-  )
+set(teshsuite_src ${teshsuite_src}                                                     PARENT_SCOPE)
+set(tesh_files    ${tesh_files}                                                        PARENT_SCOPE)
+set(xml_files     ${xml_files}    ${CMAKE_CURRENT_SOURCE_DIR}/platform_4p_1switch.xml  PARENT_SCOPE)

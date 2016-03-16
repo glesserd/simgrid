@@ -13,6 +13,7 @@ public class As {
 	protected As() {
 	};
 
+	@Override
 	public String toString (){
 		return this.getName(); 
 	}
@@ -21,8 +22,6 @@ public class As {
 	public native As[] getSons();
 
 	public native String getProperty(String name);
-
-	public native String getModel();
 
 	public native Host[] getHosts();
 

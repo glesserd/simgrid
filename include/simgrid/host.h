@@ -21,7 +21,7 @@
 SG_BEGIN_DECL()
 
 XBT_PUBLIC(size_t) sg_host_count();
-XBT_PUBLIC(const sg_host_t *) sg_host_list(void);
+XBT_PUBLIC(sg_host_t *) sg_host_list(void);
 
 XBT_PUBLIC(size_t) sg_host_extension_create(void(*deleter)(void*));
 XBT_PUBLIC(void*) sg_host_extension_get(sg_host_t host, size_t rank);
@@ -45,9 +45,6 @@ typedef struct s_smx_host_priv *smx_host_priv_t;
 XBT_PUBLIC(smx_host_priv_t) sg_host_simix(sg_host_t host);
 XBT_PUBLIC(void) sg_host_simix_set(sg_host_t host, smx_host_priv_t priv);
 XBT_PUBLIC(void) sg_host_simix_destroy(sg_host_t host);
-
-// Module initializer. Won't survive the conversion to C++. Hopefully.
-XBT_PUBLIC(void) sg_host_init(void);
 
 // ========= storage related functions ============
 XBT_PUBLIC(xbt_dict_t) sg_host_get_mounted_storage_list(sg_host_t host);

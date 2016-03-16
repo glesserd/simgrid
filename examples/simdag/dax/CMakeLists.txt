@@ -1,33 +1,11 @@
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
+add_executable       (dax_test dax_test.c)
+target_link_libraries(dax_test simgrid)
 
-add_executable(dax_test dax_test.c)
+ADD_TESH(simdag-dax       --setenv bindir=${CMAKE_BINARY_DIR}/examples/simdag/dax --cd ${CMAKE_HOME_DIRECTORY}/examples/simdag/dax smalldax.tesh)
+ADD_TESH(simdag-dax-cycle --setenv bindir=${CMAKE_BINARY_DIR}/examples/simdag/dax --cd ${CMAKE_HOME_DIRECTORY}/examples/simdag/dax simple_dax_with_cycle.tesh)
 
-### Add definitions for compile
-if(NOT WIN32)
-  target_link_libraries(dax_test simgrid pthread )
-else()
-  target_link_libraries(dax_test simgrid)
-endif()
-
-set(tesh_files
-  ${tesh_files}
-  ${CMAKE_CURRENT_SOURCE_DIR}/simple_dax_with_cycle.tesh
-  ${CMAKE_CURRENT_SOURCE_DIR}/smalldax.tesh
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  ${CMAKE_CURRENT_SOURCE_DIR}/Montage_50.xml
-  ${CMAKE_CURRENT_SOURCE_DIR}/simple_dax_with_cycle.xml
-  ${CMAKE_CURRENT_SOURCE_DIR}/smalldax.xml
-  PARENT_SCOPE
-  )
-set(examples_src
-  ${examples_src}
-  ${CMAKE_CURRENT_SOURCE_DIR}/dax_test.c
-  PARENT_SCOPE
-  )
-set(txt_files
-  ${txt_files}
-  PARENT_SCOPE
-  )
+set(tesh_files    ${tesh_files}    ${CMAKE_CURRENT_SOURCE_DIR}/simple_dax_with_cycle.tesh
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/smalldax.tesh                PARENT_SCOPE)
+set(xml_files     ${xml_files}     ${CMAKE_CURRENT_SOURCE_DIR}/simple_dax_with_cycle.xml
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/smalldax.xml                 PARENT_SCOPE)
+set(examples_src  ${examples_src}  ${CMAKE_CURRENT_SOURCE_DIR}/dax_test.c                   PARENT_SCOPE)

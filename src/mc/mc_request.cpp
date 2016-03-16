@@ -4,7 +4,12 @@
 /* This program is free software; you can redistribute it and/or modify it
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
-#include <assert.h>
+#include <cassert>
+
+#include <xbt/log.h>
+#include <xbt/str.h>
+#include <xbt/sysdep.h>
+#include <xbt/dynar.h>
 
 #include "src/mc/mc_request.h"
 #include "src/mc/mc_safety.h"
@@ -13,8 +18,6 @@
 #include "src/mc/mc_xbt.hpp"
 
 using simgrid::mc::remote;
-
-extern "C" {
 
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(mc_request, mc,
                                 "Logging specific to MC (request)");
@@ -36,7 +39,7 @@ smx_synchro_t MC_get_comm(smx_simcall_t r)
 }
 
 static inline
-smx_rdv_t MC_get_rdv(smx_simcall_t r)
+smx_mailbox_t MC_get_rdv(smx_simcall_t r)
 {
   switch(r->call) {
   case SIMCALL_COMM_ISEND:
@@ -48,15 +51,18 @@ smx_rdv_t MC_get_rdv(smx_simcall_t r)
   }
 }
 
+namespace simgrid {
+namespace mc {
+
 // Does half the job
 static inline
-int MC_request_depend_asymmetric(smx_simcall_t r1, smx_simcall_t r2)
+bool request_depend_asymmetric(smx_simcall_t r1, smx_simcall_t r2)
 {
   if (r1->call == SIMCALL_COMM_ISEND && r2->call == SIMCALL_COMM_IRECV)
-    return FALSE;
+    return false;
 
   if (r1->call == SIMCALL_COMM_IRECV && r2->call == SIMCALL_COMM_ISEND)
-    return FALSE;
+    return false;
 
   // Those are internal requests, we do not need indirection
   // because those objects are copies:
@@ -66,29 +72,29 @@ int MC_request_depend_asymmetric(smx_simcall_t r1, smx_simcall_t r2)
   if ((r1->call == SIMCALL_COMM_ISEND || r1->call == SIMCALL_COMM_IRECV)
       && r2->call == SIMCALL_COMM_WAIT) {
 
-    smx_rdv_t rdv = MC_get_rdv(r1);
+    smx_mailbox_t rdv = MC_get_rdv(r1);
 
     if (rdv != synchro2->comm.rdv_cpy
         && simcall_comm_wait__get__timeout(r2) <= 0)
-      return FALSE;
+      return false;
 
     if ((r1->issuer != synchro2->comm.src_proc)
         && (r1->issuer != synchro2->comm.dst_proc)
         && simcall_comm_wait__get__timeout(r2) <= 0)
-      return FALSE;
+      return false;
 
     if ((r1->call == SIMCALL_COMM_ISEND)
         && (synchro2->comm.type == SIMIX_COMM_SEND)
         && (synchro2->comm.src_buff !=
             simcall_comm_isend__get__src_buff(r1))
         && simcall_comm_wait__get__timeout(r2) <= 0)
-      return FALSE;
+      return false;
 
     if ((r1->call == SIMCALL_COMM_IRECV)
         && (synchro2->comm.type == SIMIX_COMM_RECEIVE)
         && (synchro2->comm.dst_buff != simcall_comm_irecv__get__dst_buff(r1))
         && simcall_comm_wait__get__timeout(r2) <= 0)
-      return FALSE;
+      return false;
   }
 
   /* FIXME: the following rule assumes that the result of the
@@ -100,41 +106,41 @@ int MC_request_depend_asymmetric(smx_simcall_t r1, smx_simcall_t r2)
 
   if (r1->call == SIMCALL_COMM_WAIT
       && (r2->call == SIMCALL_COMM_WAIT || r2->call == SIMCALL_COMM_TEST)
-      && (synchro1->comm.src_proc == NULL || synchro1->comm.dst_proc == NULL))
-    return FALSE;
+      && (synchro1->comm.src_proc == nullptr || synchro1->comm.dst_proc == NULL))
+    return false;
 
   if (r1->call == SIMCALL_COMM_TEST &&
-      (simcall_comm_test__get__comm(r1) == NULL
-       || synchro1->comm.src_buff == NULL
-       || synchro1->comm.dst_buff == NULL))
-    return FALSE;
+      (simcall_comm_test__get__comm(r1) == nullptr
+       || synchro1->comm.src_buff == nullptr
+       || synchro1->comm.dst_buff == nullptr))
+    return false;
 
   if (r1->call == SIMCALL_COMM_TEST && r2->call == SIMCALL_COMM_WAIT
       && synchro1->comm.src_buff == synchro2->comm.src_buff
       && synchro1->comm.dst_buff == synchro2->comm.dst_buff)
-    return FALSE;
+    return false;
 
   if (r1->call == SIMCALL_COMM_WAIT && r2->call == SIMCALL_COMM_TEST
-      && synchro1->comm.src_buff != NULL
-      && synchro1->comm.dst_buff != NULL
-      && synchro2->comm.src_buff != NULL
-      && synchro2->comm.dst_buff != NULL
+      && synchro1->comm.src_buff != nullptr
+      && synchro1->comm.dst_buff != nullptr
+      && synchro2->comm.src_buff != nullptr
+      && synchro2->comm.dst_buff != nullptr
       && synchro1->comm.dst_buff != synchro2->comm.src_buff
       && synchro1->comm.dst_buff != synchro2->comm.dst_buff
       && synchro2->comm.dst_buff != synchro1->comm.src_buff)
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 // Those are MC_state_get_internal_request(state)
-int MC_request_depend(smx_simcall_t r1, smx_simcall_t r2)
+bool request_depend(smx_simcall_t r1, smx_simcall_t r2)
 {
-  if (mc_reduce_kind == e_mc_reduce_none)
-    return TRUE;
+  if (simgrid::mc::reduction_mode == simgrid::mc::ReductionMode::none)
+    return true;
 
   if (r1->issuer == r2->issuer)
-    return FALSE;
+    return false;
 
   /* Wait with timeout transitions are not considered by the independance theorem, thus we consider them as dependant with all other transitions */
   if ((r1->call == SIMCALL_COMM_WAIT && simcall_comm_wait__get__timeout(r1) > 0)
@@ -143,8 +149,8 @@ int MC_request_depend(smx_simcall_t r1, smx_simcall_t r2)
     return TRUE;
 
   if (r1->call != r2->call)
-    return MC_request_depend_asymmetric(r1, r2)
-      && MC_request_depend_asymmetric(r2, r1);
+    return request_depend_asymmetric(r1, r2)
+      && request_depend_asymmetric(r2, r1);
 
   // Those are internal requests, we do not need indirection
   // because those objects are copies:
@@ -159,20 +165,23 @@ int MC_request_depend(smx_simcall_t r1, smx_simcall_t r2)
   case SIMCALL_COMM_WAIT:
     if (synchro1->comm.src_buff == synchro2->comm.src_buff
         && synchro1->comm.dst_buff == synchro2->comm.dst_buff)
-      return FALSE;
-    else if (synchro1->comm.src_buff != NULL
-        && synchro1->comm.dst_buff != NULL
-        && synchro2->comm.src_buff != NULL
-        && synchro2->comm.dst_buff != NULL
+      return false;
+    else if (synchro1->comm.src_buff != nullptr
+        && synchro1->comm.dst_buff != nullptr
+        && synchro2->comm.src_buff != nullptr
+        && synchro2->comm.dst_buff != nullptr
         && synchro1->comm.dst_buff != synchro2->comm.src_buff
         && synchro1->comm.dst_buff != synchro2->comm.dst_buff
         && synchro2->comm.dst_buff != synchro1->comm.src_buff)
-      return FALSE;
+      return false;
     else
-      return TRUE;
+      return true;
   default:
-    return TRUE;
+    return true;
   }
+}
+
+}
 }
 
 static char *pointer_to_string(void *pointer)
@@ -194,21 +203,21 @@ static char *buff_size_to_string(size_t buff_size)
 }
 
 
-char *MC_request_to_string(smx_simcall_t req, int value, e_mc_request_type_t request_type)
+char *simgrid::mc::request_to_string(smx_simcall_t req, int value, simgrid::mc::RequestType request_type)
 {
   bool use_remote_comm = true;
   switch(request_type) {
-  case MC_REQUEST_SIMIX:
+  case simgrid::mc::RequestType::simix:
     use_remote_comm = true;
     break;
-  case MC_REQUEST_EXECUTED:
-  case MC_REQUEST_INTERNAL:
+  case simgrid::mc::RequestType::executed:
+  case simgrid::mc::RequestType::internal:
     use_remote_comm = false;
     break;
   }
 
-  const char* type = NULL;
-  char *args = NULL;
+  const char* type = nullptr;
+  char *args = nullptr;
 
   smx_process_t issuer = MC_smx_simcall_get_issuer(req);
 
@@ -307,7 +316,7 @@ char *MC_request_to_string(smx_simcall_t req, int value, e_mc_request_type_t req
         act = remote_act;
 
     char* p;
-    if (act->comm.src_proc == NULL || act->comm.dst_proc == NULL) {
+    if (act->comm.src_proc == nullptr || act->comm.dst_proc == NULL) {
       type = "Test FALSE";
       p = pointer_to_string(remote_act);
       args = bprintf("comm=%s", p);
@@ -343,9 +352,8 @@ char *MC_request_to_string(smx_simcall_t req, int value, e_mc_request_type_t req
       args = bprintf("comm=%s (%d of %lu)",
         p, value + 1, xbt_dynar_length(&comms));
       xbt_free(p);
-    } else {
+    } else
       args = bprintf("comm at idx %d", value);
-    }
     break;
   }
 
@@ -382,20 +390,10 @@ char *MC_request_to_string(smx_simcall_t req, int value, e_mc_request_type_t req
 
     args = bprintf("locked = %d, owner = %d, sleeping = %d",
       mutex.locked,
-      mutex.owner != NULL ? (int) MC_smx_resolve_process(mutex.owner)->pid : -1,
+      mutex.owner != nullptr ? (int) MC_smx_resolve_process(mutex.owner)->pid : -1,
       mutex_sleeping.count);
     break;
   }
-
-  case SIMCALL_MC_SNAPSHOT:
-    type = "MC_SNAPSHOT";
-    args = NULL;
-    break;
-
-  case SIMCALL_MC_COMPARE_SNAPSHOTS:
-    type = "MC_COMPARE_SNAPSHOTS";
-    args = NULL;
-    break;
 
   case SIMCALL_MC_RANDOM:
     type = "MC_RANDOM";
@@ -407,63 +405,28 @@ char *MC_request_to_string(smx_simcall_t req, int value, e_mc_request_type_t req
   }
 
   char* str;
-  if (args != NULL) {
+  if (args != nullptr)
     str =
         bprintf("[(%lu)%s (%s)] %s(%s)", issuer->pid,
                 MC_smx_process_get_host_name(issuer),
                 MC_smx_process_get_name(issuer),
                 type, args);
-  } else {
+  else
     str =
         bprintf("[(%lu)%s (%s)] %s ", issuer->pid,
                 MC_smx_process_get_host_name(issuer),
                 MC_smx_process_get_name(issuer),
                 type);
-  }
   xbt_free(args);
   return str;
 }
 
-unsigned int MC_request_testany_fail(smx_simcall_t req)
+namespace simgrid {
+namespace mc {
+
+bool request_is_enabled_by_idx(smx_simcall_t req, unsigned int idx)
 {
-  // Remote xbt_dynar_foreach on simcall_comm_testany__get__comms(req).
-
-  // Read the dynar:
-  s_xbt_dynar_t comms;
-  mc_model_checker->process().read_bytes(
-    &comms, sizeof(comms), remote(simcall_comm_testany__get__comms(req)));
-
-  // Read ther dynar buffer:
-  size_t buffer_size = comms.elmsize * comms.used;
-  char buffer[buffer_size];
-  mc_model_checker->process().read_bytes(
-    buffer, buffer_size, remote(comms.data));
-
-  // Iterate over the elements:
-  assert(comms.elmsize == sizeof(smx_synchro_t));
-  unsigned cursor;
-  for (cursor=0; cursor != comms.used; ++cursor) {
-
-    // Get the element:
-    smx_synchro_t remote_action = NULL;
-    memcpy(&remote_action, buffer + comms.elmsize * cursor, sizeof(remote_action));
-
-    // Dereference the pointer:
-    s_smx_synchro_t action;
-    mc_model_checker->process().read_bytes(
-      &action, sizeof(action), remote(remote_action));
-
-    // Finally so something useful about it:
-    if (action.comm.src_proc && action.comm.dst_proc)
-      return FALSE;
-  }
-
-  return TRUE;
-}
-
-int MC_request_is_enabled_by_idx(smx_simcall_t req, unsigned int idx)
-{
-  smx_synchro_t remote_act = NULL;
+  smx_synchro_t remote_act = nullptr;
   switch (req->call) {
 
   case SIMCALL_COMM_WAIT:
@@ -488,7 +451,7 @@ int MC_request_is_enabled_by_idx(smx_simcall_t req, unsigned int idx)
     break;
 
   default:
-    return TRUE;
+    return true;
   }
 
   s_smx_synchro_t synchro;
@@ -497,14 +460,35 @@ int MC_request_is_enabled_by_idx(smx_simcall_t req, unsigned int idx)
   return synchro.comm.src_proc && synchro.comm.dst_proc;
 }
 
-int MC_process_is_enabled(smx_process_t process)
+bool process_is_enabled(smx_process_t process)
 {
-  return MC_request_is_enabled(&process->simcall);
+  return simgrid::mc::request_is_enabled(&process->simcall);
 }
 
-char *MC_request_get_dot_output(smx_simcall_t req, int value)
+static const char* colors[] = {
+  "blue",
+  "red",
+  "green3",
+  "goldenrod",
+  "brown",
+  "purple",
+  "magenta",
+  "turquoise4",
+  "gray25",
+  "forestgreen",
+  "hotpink",
+  "lightblue",
+  "tan",
+};
+
+static inline const char* get_color(int id)
 {
-  char *label = NULL;
+  return colors[id % (sizeof(colors) / sizeof(colors[0])) ];
+}
+
+char *request_get_dot_output(smx_simcall_t req, int value)
+{
+  char *label = nullptr;
 
   const smx_process_t issuer = MC_smx_simcall_get_issuer(req);
 
@@ -563,7 +547,7 @@ char *MC_request_get_dot_output(smx_simcall_t req, int value)
     s_smx_synchro_t synchro;
     mc_model_checker->process().read_bytes(&synchro,
       sizeof(synchro), remote(remote_act));
-    if (synchro.comm.src_proc == NULL || synchro.comm.dst_proc == NULL) {
+    if (synchro.comm.src_proc == nullptr || synchro.comm.dst_proc == NULL) {
       if (issuer->host)
         label =
             bprintf("[(%lu)%s] Test FALSE", issuer->pid,
@@ -635,34 +619,18 @@ char *MC_request_get_dot_output(smx_simcall_t req, int value)
       label = bprintf("[(%lu)] MC_RANDOM (%d)", issuer->pid, value);
     break;
 
-  case SIMCALL_MC_SNAPSHOT:
-    if (issuer->host)
-      label =
-          bprintf("[(%lu)%s] MC_SNAPSHOT", issuer->pid,
-                  MC_smx_process_get_host_name(issuer));
-    else
-      label = bprintf("[(%lu)] MC_SNAPSHOT", issuer->pid);
-    break;
-
-  case SIMCALL_MC_COMPARE_SNAPSHOTS:
-    if (issuer->host)
-      label =
-          bprintf("[(%lu)%s] MC_COMPARE_SNAPSHOTS", issuer->pid,
-                  MC_smx_process_get_host_name(issuer));
-    else
-      label = bprintf("[(%lu)] MC_COMPARE_SNAPSHOTS", issuer->pid);
-    break;
-
   default:
     THROW_UNIMPLEMENTED;
   }
 
+  const char* color = get_color(issuer->pid - 1);
   char* str =
       bprintf("label = \"%s\", color = %s, fontcolor = %s", label,
-              colors[issuer->pid - 1], colors[issuer->pid - 1]);
+              color, color);
   xbt_free(label);
   return str;
 
 }
 
+}
 }

@@ -7,8 +7,10 @@
  * under the terms of the license (GNU LGPL) which comes with this package. */
 
 /* This is partially inspirated from the OSSP ts (Test Suite Library)       */
+/* At some point we should use https://github.com/google/googletest instead */
 
-#include "src/portable.h"
+#include "src/internal_config.h"
+#include <stdio.h>
 
 #include "xbt/sysdep.h"         /* bvprintf */
 #include "xbt/cunit.h"
@@ -35,7 +37,6 @@ static int _xbt_test_suite_disabled = 0;
 /* Context */
 xbt_test_unit_t _xbt_test_current_unit = NULL;
 
-
 /* test suite test log */
 typedef struct s_xbt_test_log {
   char *text;
@@ -46,8 +47,7 @@ typedef struct s_xbt_test_log {
 static void xbt_test_log_dump(xbt_test_log_t log)
 {
   if (log)
-    fprintf(stderr, "      log %p(%s:%d)=%s\n", log, log->file, log->line,
-            log->text);
+    fprintf(stderr, "      log %p(%s:%d)=%s\n", log, log->file, log->line, log->text);
   else
     fprintf(stderr, "      log=NULL\n");
 }
@@ -68,8 +68,7 @@ static void xbt_test_test_dump(xbt_test_test_t test)
   if (test) {
     xbt_test_log_t log;
     unsigned int it_log;
-    fprintf(stderr, "    test %p(%s:%d)=%s (%s)\n",
-            test, test->file, test->line, test->title,
+    fprintf(stderr, "    test %p(%s:%d)=%s (%s)\n", test, test->file, test->line, test->title,
             test->failed ? "failed" : "not failed");
     xbt_dynar_foreach(test->logs, it_log, log)
         xbt_test_log_dump(log);
@@ -96,9 +95,7 @@ static void xbt_test_unit_dump(xbt_test_unit_t unit)
   if (unit) {
     xbt_test_test_t test;
     unsigned int it_test;
-    fprintf(stderr, "  UNIT %s: %s (%s)\n",
-            unit->name, unit->title,
-            (unit->enabled ? "enabled" : "disabled"));
+    fprintf(stderr, "  UNIT %s: %s (%s)\n", unit->name, unit->title, (unit->enabled ? "enabled" : "disabled"));
     if (unit->enabled)
       xbt_dynar_foreach(unit->tests, it_test, test)
           xbt_test_test_dump(test);
@@ -162,13 +159,11 @@ xbt_test_suite_t xbt_test_suite_new(const char *name, const char *fmt, ...)
   va_list ap;
 
   if (!_xbt_test_suites)
-    _xbt_test_suites =
-        xbt_dynar_new(sizeof(xbt_test_suite_t), xbt_test_suite_free);
+    _xbt_test_suites = xbt_dynar_new(sizeof(xbt_test_suite_t), xbt_test_suite_free);
 
   va_start(ap, fmt);
   suite->title = bvprintf(fmt, ap);
-  suite->units =
-      xbt_dynar_new(sizeof(xbt_test_unit_t), &xbt_test_unit_free);
+  suite->units = xbt_dynar_new(sizeof(xbt_test_unit_t), &xbt_test_unit_free);
   va_end(ap);
   suite->name = name;
   suite->enabled = 1;
@@ -179,8 +174,7 @@ xbt_test_suite_t xbt_test_suite_new(const char *name, const char *fmt, ...)
 }
 
 /** @brief retrieve a testsuite from name, or create a new one */
-xbt_test_suite_t xbt_test_suite_by_name(const char *name, const char *fmt,
-                                        ...)
+xbt_test_suite_t xbt_test_suite_by_name(const char *name, const char *fmt, ...)
 {
   xbt_test_suite_t suite;
   unsigned int it_suite;
@@ -207,9 +201,7 @@ void xbt_test_suite_dump(xbt_test_suite_t suite)
   if (suite) {
     xbt_test_unit_t unit;
     unsigned int it_unit;
-    fprintf(stderr, "TESTSUITE %s: %s (%s)\n",
-            suite->name, suite->title,
-            suite->enabled ? "enabled" : "disabled");
+    fprintf(stderr, "TESTSUITE %s: %s (%s)\n", suite->name, suite->title, suite->enabled ? "enabled" : "disabled");
     if (suite->enabled)
       xbt_dynar_foreach(suite->units, it_unit, unit)
           xbt_test_unit_dump(unit);
@@ -219,8 +211,7 @@ void xbt_test_suite_dump(xbt_test_suite_t suite)
 }
 
 /* add test case to test suite */
-void xbt_test_suite_push(xbt_test_suite_t suite, const char *name,
-                         ts_test_cb_t func, const char *fmt, ...)
+void xbt_test_suite_push(xbt_test_suite_t suite, const char *name, ts_test_cb_t func, const char *fmt, ...)
 {
   xbt_test_unit_t unit;
   va_list ap;
@@ -267,9 +258,7 @@ static int xbt_test_suite_run(xbt_test_suite_t suite, int verbosity)
     int suite_len = strlen(suite->title);
     int i;
 
-    xbt_assert(suite_len < 68,
-                "suite title \"%s\" too long (%d should be less than 68",
-                suite->title, suite_len);
+    xbt_assert(suite_len < 68, "suite title \"%s\" too long (%d should be less than 68", suite->title, suite_len);
 
     suite_title[0] = ' ';
     for (i = 1; i < 80; i++)
@@ -277,8 +266,7 @@ static int xbt_test_suite_run(xbt_test_suite_t suite, int verbosity)
     suite_title[i++] = '\n';
     suite_title[80] = '\0';
 
-    sprintf(suite_title + 40 - (suite_len + 4) / 2, "[ %s ]",
-            suite->title);
+    sprintf(suite_title + 40 - (suite_len + 4) / 2, "[ %s ]", suite->title);
     suite_title[40 + (suite_len + 5) / 2] = '=';
     if (!suite->enabled)
       snprintf(suite_title + 70, 11, " DISABLED ");
@@ -321,11 +309,8 @@ static int xbt_test_suite_run(xbt_test_suite_t suite, int verbosity)
             unit->test_expect++;
         }
       }
-
-
       /* Display whether this unit went well */
-      if (unit->test_failed > 0 || unit->test_expect ||
-          (verbosity && unit->nb_tests > 0)) {
+      if (unit->test_failed > 0 || unit->test_expect || (verbosity && unit->nb_tests > 0)) {
         /* some tests failed (or were supposed to), so do detailed reporting of test case */
         if (unit->test_failed > 0) {
           fprintf(stderr, ".. failed\n");
@@ -337,34 +322,23 @@ static int xbt_test_suite_run(xbt_test_suite_t suite, int verbosity)
         xbt_dynar_foreach(unit->tests, it_test, test) {
           file = (test->file != NULL ? test->file : unit->file);
           line = (test->line != 0 ? test->line : unit->line);
-          fprintf(stderr, "      %s: %s [%s:%d]\n",
-                  (test->ignored ? " SKIP"
-                   : (test->expected_failure
-                      ? (test->
-                         failed ? "EFAIL" : "EPASS") : (test->failed ?
-                                                        " FAIL" :
-                                                        " PASS"))),
-                  test->title, file, line);
+          fprintf(stderr, "      %s: %s [%s:%d]\n", (test->ignored ? " SKIP" : (test->expected_failure
+                  ? (test-> failed ? "EFAIL" : "EPASS") : (test->failed ? " FAIL" : " PASS"))),test->title, file, line);
 
-          if ((test->expected_failure && !test->failed)
-              || (!test->expected_failure && test->failed)) {
+          if ((test->expected_failure && !test->failed) || (!test->expected_failure && test->failed)) {
             xbt_dynar_foreach(test->logs, it_log, log) {
               file = (log->file != NULL ? log->file : file);
               line = (log->line != 0 ? log->line : line);
-              fprintf(stderr, "             %s:%d: %s\n",
-                      file, line, log->text);
-
+              fprintf(stderr, "             %s:%d: %s\n", file, line, log->text);
             }
           }
         }
-        fprintf(stderr, "    Summary: %d of %d tests failed",
-                unit->test_failed, unit->nb_tests);
+        fprintf(stderr, "    Summary: %d of %d tests failed", unit->test_failed, unit->nb_tests);
         if (unit->test_ignore) {
           fprintf(stderr, " (%d tests ignored)\n", unit->test_ignore);
         } else {
           fprintf(stderr, "\n");
         }
-
       } else if (!unit->enabled) {
         fprintf(stderr, " disabled\n"); /* no test were run */
       } else if (unit->nb_tests) {
@@ -411,65 +385,47 @@ static int xbt_test_suite_run(xbt_test_suite_t suite, int verbosity)
     _xbt_test_suite_ignore++;
   }
 
-
   /* print test suite summary */
   if (suite->enabled) {
-
-    fprintf(stderr,
-            " =====================================================================%s\n",
-            (suite->nb_units
-             ? (suite->unit_failed ? "== FAILED" : "====== OK")
-             : (suite->unit_disabled ? " DISABLED" : "==== SKIP")));
-    fprintf(stderr, " Summary: Units: %.0f%% ok (%d units: ",
-            suite->nb_units
-            ? ((1 -
-                (double) suite->unit_failed / (double) suite->nb_units) *
-               100.0) : 100.0, suite->nb_units);
+    fprintf(stderr," =====================================================================%s\n",
+            (suite->nb_units ? (suite->unit_failed ? "== FAILED" : "====== OK") :
+                               (suite->unit_disabled ? " DISABLED" : "==== SKIP")));
+    fprintf(stderr, " Summary: Units: %.0f%% ok (%d units: ", suite->nb_units
+            ? ((1 - (double) suite->unit_failed / (double) suite->nb_units) * 100.0) : 100.0, suite->nb_units);
 
     if (suite->nb_units != suite->unit_failed) {
-      fprintf(stderr, "%s%d ok", (first ? "" : ", "),
-              suite->nb_units - suite->unit_failed);
+      fprintf(stderr, "%s%d ok", (first ? "" : ", "), suite->nb_units - suite->unit_failed);
       first = 0;
     }
     if (suite->unit_failed) {
-      fprintf(stderr, "%s%d failed", (first ? "" : ", "),
-              suite->unit_failed);
+      fprintf(stderr, "%s%d failed", (first ? "" : ", "), suite->unit_failed);
       first = 0;
     }
     if (suite->unit_ignore) {
-      fprintf(stderr, "%s%d ignored", (first ? "" : ", "),
-              suite->unit_ignore);
+      fprintf(stderr, "%s%d ignored", (first ? "" : ", "), suite->unit_ignore);
       first = 0;
     }
     if (suite->unit_disabled) {
-      fprintf(stderr, "%s%d disabled", (first ? "" : ", "),
-              suite->unit_disabled);
+      fprintf(stderr, "%s%d disabled", (first ? "" : ", "), suite->unit_disabled);
     }
-    fprintf(stderr, ")\n          Tests: %.0f%% ok (%d tests: ",
-            suite->nb_tests
-            ? ((1 -
-                (double) suite->test_failed / (double) suite->nb_tests) *
-               100.0) : 100.0, suite->nb_tests);
+    fprintf(stderr, ")\n          Tests: %.0f%% ok (%d tests: ", suite->nb_tests
+            ? ((1 - (double) suite->test_failed / (double) suite->nb_tests) * 100.0) : 100.0, suite->nb_tests);
 
     first = 1;
     if (suite->nb_tests != suite->test_failed) {
-      fprintf(stderr, "%s%d ok", (first ? "" : ", "),
-              suite->nb_tests - suite->test_failed);
+      fprintf(stderr, "%s%d ok", (first ? "" : ", "), suite->nb_tests - suite->test_failed);
       first = 0;
     }
     if (suite->test_failed) {
-      fprintf(stderr, "%s%d failed", (first ? "" : ", "),
-              suite->test_failed);
+      fprintf(stderr, "%s%d failed", (first ? "" : ", "), suite->test_failed);
       first = 0;
     }
     if (suite->test_ignore) {
-      fprintf(stderr, "%s%d ignored", (first ? "" : "; "),
-              suite->test_ignore);
+      fprintf(stderr, "%s%d ignored", (first ? "" : "; "), suite->test_ignore);
       first = 0;
     }
     if (suite->test_expect) {
-      fprintf(stderr, "%s%d expected to fail", (first ? "" : "; "),
-              suite->test_expect);
+      fprintf(stderr, "%s%d expected to fail", (first ? "" : "; "), suite->test_expect);
     }
     fprintf(stderr, ")\n");
   }
@@ -480,7 +436,6 @@ static void apply_selection(char *selection)
 {
   /* for the parsing */
   char *sel = selection;
-  char *p;
   int done = 0;
   char dir[1024];               /* the directive */
   /* iterators */
@@ -501,7 +456,7 @@ static void apply_selection(char *selection)
   while (!done) {
     int enabling = 1;
 
-    p = strchr(sel, ',');
+    char *p = strchr(sel, ',');
     if (p) {
       strncpy(dir, sel, p - sel);
       dir[p - sel] = '\0';
@@ -529,16 +484,10 @@ static void apply_selection(char *selection)
       strcpy(suitename, dir);
       unitname[0] = '\0';
     }
-    /*fprintf(stderr,"Seen %s (%s; suite=%s; unit=%s)\n",
-       dir,enabling?"enabling":"disabling", suitename, unitname); */
 
     /* Deal with the specific case of 'all' pseudo serie */
     if (!strcmp("all", suitename)) {
-      if (unitname[0] != '\0') {
-        fprintf(stderr,
-                "The 'all' pseudo-suite does not accept any unit specification\n");
-        exit(1);
-      }
+      xbt_assert(unitname[0] == '\0', "The 'all' pseudo-suite does not accept any unit specification\n");
 
       xbt_dynar_foreach(_xbt_test_suites, it_suite, suite) {
         xbt_dynar_foreach(suite->units, it_unit, unit) {
@@ -566,33 +515,22 @@ static void apply_selection(char *selection)
             for (it2_unit = 0;
                  it2_unit < xbt_dynar_length(thissuite->units);
                  it2_unit++) {
-              xbt_test_unit_t thisunit =
-                  xbt_dynar_get_as(thissuite->units, it2_unit,
-                                   xbt_test_unit_t);
+              xbt_test_unit_t thisunit = xbt_dynar_get_as(thissuite->units, it2_unit, xbt_test_unit_t);
               if (!strcmp(thisunit->name, unitname)) {
                 thisunit->enabled = enabling;
                 break;
               }
             }                   /* search relevant unit */
-            if (it2_unit == xbt_dynar_length(thissuite->units)) {
-              fprintf(stderr,
-                      "Suite '%s' has no unit of name '%s'. Cannot apply the selection\n",
-                      suitename, unitname);
-              exit(1);
-            }
+            xbt_assert(it2_unit != xbt_dynar_length(thissuite->units),
+                "Suite '%s' has no unit of name '%s'. Cannot apply the selection\n", suitename, unitname);
           }                     /* act on childs (either all or one) */
 
           break;                /* found the relevant serie. We are happy */
         }
       }                         /* search relevant series */
-      if (it == xbt_dynar_length(_xbt_test_suites)) {
-        fprintf(stderr,
-                "No suite of name '%s' found. Cannot apply the selection\n",
-                suitename);
-        exit(1);
-      }
+      xbt_assert(it != xbt_dynar_length(_xbt_test_suites),
+                 "No suite of name '%s' found. Cannot apply the selection\n", suitename);
     }
-
   }
 }
 
@@ -625,73 +563,52 @@ int xbt_test_run(char *selection, int verbosity)
       xbt_test_suite_run(suite, verbosity);
 
     /* Display some more statistics */
-    fprintf(stderr, "\n\n TOTAL: Suites: %.0f%% ok (%d suites: ",
-            _xbt_test_nb_suites
-            ? ((1 -
-                (double) _xbt_test_suite_failed /
-                (double) _xbt_test_nb_suites) * 100.0)
+    fprintf(stderr, "\n\n TOTAL: Suites: %.0f%% ok (%d suites: ",_xbt_test_nb_suites
+            ? ((1 - (double) _xbt_test_suite_failed / (double) _xbt_test_nb_suites) * 100.0)
             : 100.0, _xbt_test_nb_suites);
     if (_xbt_test_nb_suites != _xbt_test_suite_failed) {
-      fprintf(stderr, "%d ok",
-              _xbt_test_nb_suites - _xbt_test_suite_failed);
+      fprintf(stderr, "%d ok", _xbt_test_nb_suites - _xbt_test_suite_failed);
       first = 0;
     }
     if (_xbt_test_suite_failed) {
-      fprintf(stderr, "%s%d failed", (first ? "" : ", "),
-              _xbt_test_suite_failed);
+      fprintf(stderr, "%s%d failed", (first ? "" : ", "), _xbt_test_suite_failed);
       first = 0;
     }
 
     if (_xbt_test_suite_ignore) {
-      fprintf(stderr, "%s%d ignored", (first ? "" : ", "),
-              _xbt_test_suite_ignore);
+      fprintf(stderr, "%s%d ignored", (first ? "" : ", "), _xbt_test_suite_ignore);
     }
-    fprintf(stderr, ")\n        Units:  %.0f%% ok (%d units: ",
-            _xbt_test_nb_units
-            ? ((1 -
-                (double) _xbt_test_unit_failed /
-                (double) _xbt_test_nb_units) * 100.0) : 100.0,
-            _xbt_test_nb_units);
+    fprintf(stderr, ")\n        Units:  %.0f%% ok (%d units: ", _xbt_test_nb_units
+            ? ((1 - (double) _xbt_test_unit_failed / (double) _xbt_test_nb_units) * 100.0) : 100.0, _xbt_test_nb_units);
     first = 1;
     if (_xbt_test_nb_units != _xbt_test_unit_failed) {
-      fprintf(stderr, "%s%d ok", (first ? "" : ", "),
-              _xbt_test_nb_units - _xbt_test_unit_failed);
+      fprintf(stderr, "%s%d ok", (first ? "" : ", "), _xbt_test_nb_units - _xbt_test_unit_failed);
       first = 0;
     }
     if (_xbt_test_unit_failed) {
-      fprintf(stderr, "%s%d failed", (first ? "" : ", "),
-              _xbt_test_unit_failed);
+      fprintf(stderr, "%s%d failed", (first ? "" : ", "), _xbt_test_unit_failed);
       first = 0;
     }
     if (_xbt_test_unit_ignore) {
-      fprintf(stderr, "%s%d ignored", (first ? "" : ", "),
-              _xbt_test_unit_ignore);
+      fprintf(stderr, "%s%d ignored", (first ? "" : ", "), _xbt_test_unit_ignore);
     }
-    fprintf(stderr, ")\n        Tests:  %.0f%% ok (%d tests: ",
-            _xbt_test_nb_tests
-            ? ((1 -
-                (double) _xbt_test_test_failed /
-                (double) _xbt_test_nb_tests) * 100.0) : 100.0,
-            _xbt_test_nb_tests);
+    fprintf(stderr, ")\n        Tests:  %.0f%% ok (%d tests: ", _xbt_test_nb_tests
+            ? ((1 - (double) _xbt_test_test_failed / (double) _xbt_test_nb_tests) * 100.0) : 100.0, _xbt_test_nb_tests);
     first = 1;
     if (_xbt_test_nb_tests != _xbt_test_test_failed) {
-      fprintf(stderr, "%s%d ok", (first ? "" : ", "),
-              _xbt_test_nb_tests - _xbt_test_test_failed);
+      fprintf(stderr, "%s%d ok", (first ? "" : ", "), _xbt_test_nb_tests - _xbt_test_test_failed);
       first = 0;
     }
     if (_xbt_test_test_failed) {
-      fprintf(stderr, "%s%d failed", (first ? "" : ", "),
-              _xbt_test_test_failed);
+      fprintf(stderr, "%s%d failed", (first ? "" : ", "), _xbt_test_test_failed);
       first = 0;
     }
     if (_xbt_test_test_ignore) {
-      fprintf(stderr, "%s%d ignored", (first ? "" : ", "),
-              _xbt_test_test_ignore);
+      fprintf(stderr, "%s%d ignored", (first ? "" : ", "), _xbt_test_test_ignore);
       first = 0;
     }
     if (_xbt_test_test_expect) {
-      fprintf(stderr, "%s%d expected to fail", (first ? "" : ", "),
-              _xbt_test_test_expect);
+      fprintf(stderr, "%s%d expected to fail", (first ? "" : ", "), _xbt_test_test_expect);
     }
 
     fprintf(stderr, ")\n");
@@ -711,13 +628,10 @@ void xbt_test_exit(void)
 void _xbt_test_add(const char *file, int line, const char *fmt, ...)
 {
   xbt_test_unit_t unit = _xbt_test_current_unit;
-  xbt_test_test_t test;
-  va_list ap;
-
   xbt_assert(unit);
-  xbt_assert(fmt);
 
-  test = xbt_new0(struct s_xbt_test_test, 1);
+  va_list ap;
+  xbt_test_test_t test = xbt_new0(struct s_xbt_test_test, 1);
   va_start(ap, fmt);
   test->title = bvprintf(fmt, ap);
   va_end(ap);
@@ -735,25 +649,19 @@ void _xbt_test_add(const char *file, int line, const char *fmt, ...)
 void _xbt_test_fail(const char *file, int line, const char *fmt, ...)
 {
   xbt_test_unit_t unit = _xbt_test_current_unit;
-  xbt_test_test_t test;
-  xbt_test_log_t log;
-  va_list ap;
-
   xbt_assert(unit);
-  xbt_assert(fmt);
-
   xbt_assert(xbt_dynar_length(_xbt_test_current_unit->tests),
-              "Test failed even before being declared (broken unit: %s)",
-              unit->title);
+      "Test failed even before being declared (broken unit: %s)", unit->title);
 
-  log = xbt_new(struct s_xbt_test_log, 1);
+  va_list ap;
+  xbt_test_log_t log = xbt_new(struct s_xbt_test_log, 1);
   va_start(ap, fmt);
   log->text = bvprintf(fmt, ap);
   va_end(ap);
   log->file = file;
   log->line = line;
 
-  test = xbt_dynar_getlast_as(unit->tests, xbt_test_test_t);
+  xbt_test_test_t test = xbt_dynar_getlast_as(unit->tests, xbt_test_test_t);
   xbt_dynar_push(test->logs, &log);
 
   test->failed = 1;
@@ -761,31 +669,22 @@ void _xbt_test_fail(const char *file, int line, const char *fmt, ...)
 
 void xbt_test_exception(xbt_ex_t e)
 {
-  _xbt_test_fail(e.file, e.line, "Exception %s raised: %s",
-                 xbt_ex_catname(e.category), e.msg);
+  _xbt_test_fail(e.file, e.line, "Exception %s raised: %s", xbt_ex_catname(e.category), e.msg);
 }
 
 void xbt_test_expect_failure(void)
 {
-  xbt_test_test_t test;
   xbt_assert(xbt_dynar_length(_xbt_test_current_unit->tests),
-              "Cannot expect the failure of a test before declaring it (broken unit: %s)",
-              _xbt_test_current_unit->title);
-  test =
-      xbt_dynar_getlast_as(_xbt_test_current_unit->tests, xbt_test_test_t);
+      "Cannot expect the failure of a test before declaring it (broken unit: %s)", _xbt_test_current_unit->title);
+  xbt_test_test_t test = xbt_dynar_getlast_as(_xbt_test_current_unit->tests, xbt_test_test_t);
   test->expected_failure = 1;
 }
 
 void xbt_test_skip(void)
 {
-  xbt_test_test_t test;
-
   xbt_assert(xbt_dynar_length(_xbt_test_current_unit->tests),
-              "Test skiped even before being declared (broken unit: %s)",
-              _xbt_test_current_unit->title);
-
-  test =
-      xbt_dynar_getlast_as(_xbt_test_current_unit->tests, xbt_test_test_t);
+      "Test skiped even before being declared (broken unit: %s)", _xbt_test_current_unit->title);
+  xbt_test_test_t test = xbt_dynar_getlast_as(_xbt_test_current_unit->tests, xbt_test_test_t);
   test->ignored = 1;
 }
 
@@ -793,33 +692,23 @@ void xbt_test_skip(void)
 void _xbt_test_log(const char *file, int line, const char *fmt, ...)
 {
   xbt_test_unit_t unit = _xbt_test_current_unit;
-  xbt_test_test_t test;
-  xbt_test_log_t log;
-  va_list ap;
-
   xbt_assert(unit);
-  xbt_assert(fmt);
-
   xbt_assert(xbt_dynar_length(_xbt_test_current_unit->tests),
-              "Test logged into even before being declared (broken test unit: %s)",
-              unit->title);
+      "Test logged into even before being declared (broken test unit: %s)", unit->title);
 
-  log = xbt_new(struct s_xbt_test_log, 1);
+  va_list ap;
+  xbt_test_log_t log = xbt_new(struct s_xbt_test_log, 1);
   va_start(ap, fmt);
   log->text = bvprintf(fmt, ap);
   va_end(ap);
   log->file = file;
   log->line = line;
 
-  test = xbt_dynar_getlast_as(unit->tests, xbt_test_test_t);
+  xbt_test_test_t test = xbt_dynar_getlast_as(unit->tests, xbt_test_test_t);
   xbt_dynar_push(test->logs, &log);
 }
 
-
-
-
 #ifdef SIMGRID_TEST
-
 XBT_TEST_SUITE("cunit", "Testsuite mechanism autotest");
 
 XBT_TEST_UNIT("expect", test_expected_failure, "expected failures")
@@ -832,5 +721,4 @@ XBT_TEST_UNIT("expect", test_expected_failure, "expected failures")
   xbt_test_log("%s %s", "Test", "log");
   xbt_test_fail("EXPECTED FAILURE");
 }
-
 #endif                          /* SIMGRID_TEST */

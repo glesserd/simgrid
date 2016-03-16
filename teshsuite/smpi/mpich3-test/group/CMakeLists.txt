@@ -6,7 +6,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
     set(CMAKE_Fortran_COMPILER "${CMAKE_BINARY_DIR}/smpi_script/bin/smpiff")
   endif()
 
-  set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
   include_directories(BEFORE "${CMAKE_HOME_DIRECTORY}/include/smpi")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../include/")
 
@@ -23,17 +22,8 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
   target_link_libraries(grouptest simgrid mtest_c)
   target_link_libraries(gtranks simgrid mtest_c)
   target_link_libraries(gtranksperf simgrid mtest_c)
-
 endif()
 
-set(tesh_files
-  ${tesh_files}
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  PARENT_SCOPE
-  )
 set(examples_src
   ${examples_src}
  ${CMAKE_CURRENT_SOURCE_DIR}/groupcreate.c 
@@ -42,14 +32,8 @@ set(examples_src
  ${CMAKE_CURRENT_SOURCE_DIR}/grouptest.c 
  ${CMAKE_CURRENT_SOURCE_DIR}/gtranks.c 
  ${CMAKE_CURRENT_SOURCE_DIR}/gtranksperf.c 
-  PARENT_SCOPE
-  )
-set(bin_files
-  ${bin_files}
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)
 set(txt_files
   ${txt_files}
   ${CMAKE_CURRENT_SOURCE_DIR}/testlist
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)

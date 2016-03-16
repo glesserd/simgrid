@@ -9,19 +9,13 @@
 #include <stdarg.h>
 
 #include <functional>
+#include <ucontext.h>           /* context relative declarations */
 
 #include "xbt/parmap.h"
 #include "src/simix/smx_private.h"
 #include "src/simix/smx_private.hpp"
 #include "src/internal_config.h"
-#include "src/context_sysv_config.h"        /* loads context system definitions */
 #include "mc/mc.h"
-
-#ifdef _XBT_WIN32
-#  include <xbt/win32_ucontext.h>     /* context relative declarations */
-#else
-#  include <ucontext.h>           /* context relative declarations */
-#endif
 
 /** Many integers are needed to store a pointer
  *
@@ -36,8 +30,7 @@
  * Makecontext expects integer arguments, we the context
  * variable is decomposed into a serie of integers and
  * each integer is passed as argument to makecontext. */
-static
-void simgrid_makecontext(ucontext_t* ucp, void (*func)(int first, ...), void* arg)
+static void simgrid_makecontext(ucontext_t* ucp, void (*func)(int first, ...), void* arg)
 {
   int ctx_addr[CTX_ADDR_LEN];
   memcpy(ctx_addr, &arg, sizeof(void*));
@@ -49,8 +42,7 @@ void simgrid_makecontext(ucontext_t* ucp, void (*func)(int first, ...), void* ar
     makecontext(ucp, (void (*)()) func, 2, ctx_addr[0], ctx_addr[1]);
     break;
   default:
-    xbt_die("Ucontexts are not supported on this arch yet (addr len = %zu/%zu = %zu)",
-            sizeof(void*), sizeof(int), CTX_ADDR_LEN);
+    xbt_die("Ucontexts are not supported on this arch yet (addr len = %zu/%zu = %zu)", sizeof(void*), sizeof(int), CTX_ADDR_LEN);
   }
 }
 
@@ -65,16 +57,20 @@ namespace simix {
 }
 }
 
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
 static xbt_parmap_t sysv_parmap;
 static simgrid::simix::ParallelUContext** sysv_workers_context;   /* space to save the worker's context in each thread */
-static unsigned long sysv_threads_working;     /* number of threads that have started their work */
+static uintptr_t sysv_threads_working;     /* number of threads that have started their work */
 static xbt_os_thread_key_t sysv_worker_id_key; /* thread-specific storage for the thread id */
 #endif
 static unsigned long sysv_process_index = 0;   /* index of the next process to run in the
                                                 * list of runnable processes */
 static simgrid::simix::UContext* sysv_maestro_context;
 static bool sysv_parallel;
+
+// The name of this function is currently hardcoded in the code (as string).
+// Do not change it without fixing those references as well.
+static void smx_ctx_sysv_wrapper(int first, ...);
 
 namespace simgrid {
 namespace simix {
@@ -88,8 +84,6 @@ public:
   UContext(std::function<void()>  code,
     void_pfn_smxprocess_t cleanup_func, smx_process_t process);
   ~UContext();
-protected:
-  static void wrapper(int first, ...);
 };
 
 class SerialUContext : public UContext {
@@ -137,7 +131,7 @@ UContextFactory::UContextFactory() : ContextFactory("UContextFactory")
 {
   if (SIMIX_context_is_parallel()) {
     sysv_parallel = true;
-#ifdef HAVE_THREAD_CONTEXTS  /* To use parallel ucontexts a thread pool is needed */
+#if HAVE_THREAD_CONTEXTS  /* To use parallel ucontexts a thread pool is needed */
     int nthreads = SIMIX_context_get_nthreads();
     sysv_parmap = nullptr;
     sysv_workers_context = xbt_new(ParallelUContext*, nthreads);
@@ -153,7 +147,7 @@ UContextFactory::UContextFactory() : ContextFactory("UContextFactory")
 
 UContextFactory::~UContextFactory()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   if (sysv_parmap)
     xbt_parmap_destroy(sysv_parmap);
   xbt_free(sysv_workers_context);
@@ -167,7 +161,7 @@ UContextFactory::~UContextFactory()
 void UContextFactory::run_all()
 {
   if (sysv_parallel) {
-    #ifdef HAVE_THREAD_CONTEXTS
+    #if HAVE_THREAD_CONTEXTS
       sysv_threads_working = 0;
       // Parmap_apply ensures that every working thread get an index in the
       // process_to_run array (through an atomic fetch_and_add),
@@ -214,24 +208,21 @@ UContext::UContext(std::function<void()> code,
     void_pfn_smxprocess_t cleanup_func, smx_process_t process)
   : Context(std::move(code), cleanup_func, process)
 {
-  /* if the user provided a function for the process then use it,
-     otherwise it is the context for maestro */
+  /* if the user provided a function for the process then use it, otherwise it is the context for maestro */
   if (has_code()) {
     this->stack_ = (char*) SIMIX_context_stack_new();
     getcontext(&this->uc_);
     this->uc_.uc_link = nullptr;
-    this->uc_.uc_stack.ss_sp = pth_skaddr_makecontext(
-          this->stack_, smx_context_usable_stack_size);
-    this->uc_.uc_stack.ss_size = pth_sksize_makecontext(
-          this->stack_, smx_context_usable_stack_size);
-    simgrid_makecontext(&this->uc_, UContext::wrapper, this);
+    this->uc_.uc_stack.ss_sp   = sg_makecontext_stack_addr(this->stack_);
+    this->uc_.uc_stack.ss_size = sg_makecontext_stack_size(smx_context_usable_stack_size);
+    simgrid_makecontext(&this->uc_, smx_ctx_sysv_wrapper, this);
   } else {
     if (process != NULL && sysv_maestro_context == NULL)
       sysv_maestro_context = this;
   }
 
-#ifdef HAVE_MC
-  if (MC_is_active() && code) {
+#if HAVE_MC
+  if (MC_is_active() && has_code()) {
     MC_register_stack_area(this->stack_, process,
                       &(this->uc_), smx_context_usable_stack_size);
   }
@@ -243,11 +234,14 @@ UContext::~UContext()
   SIMIX_context_stack_delete(this->stack_);
 }
 
-void UContext::wrapper(int first, ...)
+}
+}
+
+static void smx_ctx_sysv_wrapper(int first, ...)
 {
   // Rebuild the Context* pointer from the integers:
   int ctx_addr[CTX_ADDR_LEN];
-  UContext* context;
+  simgrid::simix::UContext* context;
   ctx_addr[0] = first;
   if (CTX_ADDR_LEN > 1) {
     va_list ap;
@@ -256,11 +250,14 @@ void UContext::wrapper(int first, ...)
       ctx_addr[i] = va_arg(ap, int);
     va_end(ap);
   }
-  memcpy(&context, ctx_addr, sizeof(UContext*));
+  memcpy(&context, ctx_addr, sizeof(simgrid::simix::UContext*));
 
   (*context)();
   context->stop();
 }
+
+namespace simgrid {
+namespace simix {
 
 void SerialUContext::stop()
 {
@@ -306,9 +303,9 @@ void ParallelUContext::stop()
 /** Run one particular simulated process on the current thread. */
 void ParallelUContext::resume()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   // What is my containing body?
-  unsigned long worker_id = __sync_fetch_and_add(&sysv_threads_working, 1);
+  uintptr_t worker_id = __sync_fetch_and_add(&sysv_threads_working, 1);
   // Store the number of my containing body in os-thread-specific area :
   xbt_os_thread_set_specific(sysv_worker_id_key, (void*) worker_id);
   // Get my current soul:
@@ -347,7 +344,7 @@ void ParallelUContext::resume()
  */
 void ParallelUContext::suspend()
 {
-#ifdef HAVE_THREAD_CONTEXTS
+#if HAVE_THREAD_CONTEXTS
   /* determine the next context */
   // Get the next soul to embody now:
   smx_process_t next_work = (smx_process_t) xbt_parmap_next(sysv_parmap);
@@ -365,8 +362,8 @@ void ParallelUContext::suspend()
     XBT_DEBUG("No more processes to run");
     // Get back the identity of my body that was stored when starting
     // the scheduling round
-    unsigned long worker_id =
-        (unsigned long) xbt_os_thread_get_specific(sysv_worker_id_key);
+    uintptr_t worker_id =
+        (uintptr_t) xbt_os_thread_get_specific(sysv_worker_id_key);
     // Deduce the initial soul of that body
     next_context = (ParallelUContext*) sysv_workers_context[worker_id];
     // When given that soul, the body will wait for the next scheduling round

@@ -49,9 +49,9 @@ public:
   virtual int main(int argc, char **argv);
 
   /** The Actor that is currently running */
-  static Actor *current();
+  static Actor &self();
   /** Retrieves the actor that have the given PID (or NULL if not existing) */
-  static Actor *byPid(int pid);
+  //static Actor *byPid(int pid); not implemented
 
   /** Retrieves the name of that actor */
   const char*getName();

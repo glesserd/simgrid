@@ -13,34 +13,28 @@
 #include <xbt/sysdep.h>
 
 #include "src/internal_config.h"
-#include "src/mc/mc_object_info.h"
+#include "src/mc/mc_forward.hpp"
 #include "src/mc/mc_safety.h"
 #include "src/mc/mc_liveness.h"
 #include "src/mc/mc_private.h"
 #include "src/mc/mc_smx.h"
 #include "src/mc/mc_dwarf.hpp"
-
+#include "src/mc/malloc.hpp"
 #include "src/mc/Frame.hpp"
 #include "src/mc/ObjectInformation.hpp"
 #include "src/mc/Variable.hpp"
 
-#ifdef HAVE_SMPI
+#if HAVE_SMPI
 #include "src/smpi/private.h"
 #endif
 
 #include "xbt/mmalloc.h"
 #include "src/xbt/mmalloc/mmprivate.h"
 
-#include "src/xbt/probes.h"
-
 using simgrid::mc::remote;
-
-extern "C" {
 
 XBT_LOG_NEW_DEFAULT_SUBCATEGORY(mc_compare, xbt,
                                 "Logging specific to mc_compare in mc");
-
-}
 
 namespace simgrid {
 namespace mc {
@@ -77,8 +71,8 @@ extern "C" {
 
 static int compare_areas_with_type(ComparisonState& state,
                                    int process_index,
-                                   void* real_area1, mc_snapshot_t snapshot1, mc_mem_region_t region1,
-                                   void* real_area2, mc_snapshot_t snapshot2, mc_mem_region_t region2,
+                                   void* real_area1, simgrid::mc::Snapshot* snapshot1, mc_mem_region_t region1,
+                                   void* real_area2, simgrid::mc::Snapshot* snapshot2, mc_mem_region_t region2,
                                    simgrid::mc::Type* type, int pointer_level)
 {
   simgrid::mc::Process* process = &mc_model_checker->process();
@@ -153,19 +147,17 @@ static int compare_areas_with_type(ComparisonState& state,
     void* addr_pointed1 = MC_region_read_pointer(region1, real_area1);
     void* addr_pointed2 = MC_region_read_pointer(region2, real_area2);
 
-    if (type->subtype && type->subtype->type == DW_TAG_subroutine_type) {
+    if (type->subtype && type->subtype->type == DW_TAG_subroutine_type)
       return (addr_pointed1 != addr_pointed2);
-    } else {
+    if (addr_pointed1 == nullptr && addr_pointed2 == NULL)
+      return 0;
+    if (addr_pointed1 == nullptr || addr_pointed2 == NULL)
+      return 1;
+    if (!state.compared_pointers.insert(
+        std::make_pair(addr_pointed1, addr_pointed2)).second)
+      return 0;
 
-      if (addr_pointed1 == NULL && addr_pointed2 == NULL)
-        return 0;
-      if (addr_pointed1 == NULL || addr_pointed2 == NULL)
-        return 1;
-      if (!state.compared_pointers.insert(
-          std::make_pair(addr_pointed1, addr_pointed2)).second)
-        return 0;
-
-      pointer_level++;
+    pointer_level++;
 
       // Some cases are not handled here:
       // * the pointers lead to different areas (one to the heap, the other to the RW segment ...);
@@ -179,8 +171,8 @@ static int compare_areas_with_type(ComparisonState& state,
              && addr_pointed2 < mc_snapshot_get_heap_end(snapshot2)))
           return 1;
         // The pointers are both in the heap:
-        return compare_heap_area(process_index, addr_pointed1, addr_pointed2, snapshot1,
-                                 snapshot2, NULL, type->subtype, pointer_level);
+        return simgrid::mc::compare_heap_area(process_index, addr_pointed1, addr_pointed2, snapshot1,
+                                 snapshot2, nullptr, type->subtype, pointer_level);
       }
 
       // The pointers are both in the current object R/W segment:
@@ -189,21 +181,19 @@ static int compare_areas_with_type(ComparisonState& state,
           return 1;
         if (!type->type_id)
           return (addr_pointed1 != addr_pointed2);
-        else {
+        else
           return compare_areas_with_type(state, process_index,
                                          addr_pointed1, snapshot1, region1,
                                          addr_pointed2, snapshot2, region2,
                                          type->subtype, pointer_level);
-        }
       }
 
       // TODO, We do not handle very well the case where
       // it belongs to a different (non-heap) region from the current one.
 
-      else {
+      else
         return (addr_pointed1 != addr_pointed2);
-      }
-    }
+
     break;
   }
   case DW_TAG_structure_type:
@@ -238,17 +228,16 @@ static int compare_areas_with_type(ComparisonState& state,
 static int compare_global_variables(simgrid::mc::ObjectInformation* object_info,
                                     int process_index,
                                     mc_mem_region_t r1,
-                                    mc_mem_region_t r2, mc_snapshot_t snapshot1,
-                                    mc_snapshot_t snapshot2)
+                                    mc_mem_region_t r2, simgrid::mc::Snapshot* snapshot1,
+                                    simgrid::mc::Snapshot* snapshot2)
 {
   xbt_assert(r1 && r2, "Missing region.");
 
-#ifdef HAVE_SMPI
+#if HAVE_SMPI
   if (r1->storage_type() == simgrid::mc::StorageType::Privatized) {
     xbt_assert(process_index >= 0);
-    if (r2->storage_type() != simgrid::mc::StorageType::Privatized) {
+    if (r2->storage_type() != simgrid::mc::StorageType::Privatized)
       return 1;
-    }
 
     size_t process_count = MC_smpi_process_count();
     xbt_assert(process_count == r1->privatized_data().size()
@@ -289,7 +278,6 @@ static int compare_global_variables(simgrid::mc::ObjectInformation* object_info,
                                 (char *) current_var.address, snapshot2, r2,
                                 bvariable_type, 0);
     if (res == 1) {
-      XBT_TRACE3(mc, global_diff, -1, -1, current_var->name);
       XBT_VERB("Global variable %s (%p) is different between snapshots",
                current_var.name.c_str(),
                (char *) current_var.address);
@@ -303,8 +291,8 @@ static int compare_global_variables(simgrid::mc::ObjectInformation* object_info,
 }
 
 static int compare_local_variables(int process_index,
-                                   mc_snapshot_t snapshot1,
-                                   mc_snapshot_t snapshot2,
+                                   simgrid::mc::Snapshot* snapshot1,
+                                   simgrid::mc::Snapshot* snapshot2,
                                    mc_snapshot_stack_t stack1,
                                    mc_snapshot_stack_t stack2)
 {
@@ -313,7 +301,8 @@ static int compare_local_variables(int process_index,
   if (stack1->local_variables.size() != stack2->local_variables.size()) {
     XBT_VERB("Different number of local variables");
     return 1;
-  } else {
+  }
+
     unsigned int cursor = 0;
     local_variable_t current_var1, current_var2;
     int res;
@@ -345,7 +334,6 @@ static int compare_local_variables(int process_index,
 
       if (res == 1) {
         // TODO, fix current_varX->subprogram->name to include name if DW_TAG_inlined_subprogram
-        XBT_TRACE3(mc, local_diff, -1, -1, current_var1->name);
         XBT_VERB
             ("Local variable %s (%p - %p) in frame %s "
              "is different between snapshots",
@@ -358,31 +346,31 @@ static int compare_local_variables(int process_index,
       cursor++;
     }
     return 0;
-  }
 }
 
 int snapshot_compare(void *state1, void *state2)
 {
   simgrid::mc::Process* process = &mc_model_checker->process();
 
-  mc_snapshot_t s1, s2;
+  simgrid::mc::Snapshot* s1;
+  simgrid::mc::Snapshot* s2;
   int num1, num2;
 
   if (_sg_mc_liveness) {        /* Liveness MC */
-    s1 = ((mc_visited_pair_t) state1)->graph_state->system_state;
-    s2 = ((mc_visited_pair_t) state2)->graph_state->system_state;
-    num1 = ((mc_visited_pair_t) state1)->num;
-    num2 = ((mc_visited_pair_t) state2)->num;
+    s1 = ((simgrid::mc::VisitedPair*) state1)->graph_state->system_state;
+    s2 = ((simgrid::mc::VisitedPair*) state2)->graph_state->system_state;
+    num1 = ((simgrid::mc::VisitedPair*) state1)->num;
+    num2 = ((simgrid::mc::VisitedPair*) state2)->num;
   }else if (_sg_mc_termination) { /* Non-progressive cycle MC */
     s1 = ((mc_state_t) state1)->system_state;
     s2 = ((mc_state_t) state2)->system_state;
     num1 = ((mc_state_t) state1)->num;
     num2 = ((mc_state_t) state2)->num;
   } else {                      /* Safety or comm determinism MC */
-    s1 = ((mc_visited_state_t) state1)->system_state;
-    s2 = ((mc_visited_state_t) state2)->system_state;
-    num1 = ((mc_visited_state_t) state1)->num;
-    num2 = ((mc_visited_state_t) state2)->num;
+    s1 = ((simgrid::mc::VisitedState*) state1)->system_state;
+    s2 = ((simgrid::mc::VisitedState*) state2)->system_state;
+    num1 = ((simgrid::mc::VisitedState*) state1)->num;
+    num2 = ((simgrid::mc::VisitedState*) state2)->num;
   }
 
   int errors = 0;
@@ -392,20 +380,17 @@ int snapshot_compare(void *state1, void *state2)
   if (_sg_mc_hash) {
     hash_result = (s1->hash != s2->hash);
     if (hash_result) {
-      XBT_TRACE2(mc, hash_diff, num1, num2);
       XBT_VERB("(%d - %d) Different hash : 0x%" PRIx64 "--0x%" PRIx64, num1,
                num2, s1->hash, s2->hash);
 #ifndef MC_DEBUG
       return 1;
 #endif
-    } else {
+    } else
       XBT_VERB("(%d - %d) Same hash : 0x%" PRIx64, num1, num2, s1->hash);
-    }
   }
 
   /* Compare enabled processes */
   if (s1->enabled_processes != s2->enabled_processes) {
-      //XBT_TRACE3(mc, state_diff, num1, num2, "Different enabled processes");
       XBT_VERB("(%d - %d) Different enabled processes", num1, num2);
       // return 1; ??
   }
@@ -429,7 +414,6 @@ int snapshot_compare(void *state1, void *state2)
       XBT_VERB("(%d - %d) Different size used in stacks : %zu - %zu", num1,
                num2, size_used1, size_used2);
 #endif
-      XBT_TRACE3(mc, state_diff, num1, num2, "Different stack size");
       return 1;
 #endif
     }
@@ -440,19 +424,18 @@ int snapshot_compare(void *state1, void *state2)
   xbt_mheap_t heap1 = (xbt_mheap_t)s1->read_bytes(
     alloca(sizeof(struct mdesc)), sizeof(struct mdesc),
     remote(process->heap_address),
-    simgrid::mc::ProcessIndexMissing, simgrid::mc::AddressSpace::Lazy);
+    simgrid::mc::ProcessIndexMissing, simgrid::mc::ReadOptions::lazy());
   xbt_mheap_t heap2 = (xbt_mheap_t)s2->read_bytes(
     alloca(sizeof(struct mdesc)), sizeof(struct mdesc),
     remote(process->heap_address),
-    simgrid::mc::ProcessIndexMissing, simgrid::mc::AddressSpace::Lazy);
-  res_init = init_heap_information(heap1, heap2, &s1->to_ignore, &s2->to_ignore);
+    simgrid::mc::ProcessIndexMissing, simgrid::mc::ReadOptions::lazy());
+  res_init = simgrid::mc::init_heap_information(heap1, heap2, &s1->to_ignore, &s2->to_ignore);
   if (res_init == -1) {
 #ifdef MC_DEBUG
     XBT_DEBUG("(%d - %d) Different heap information", num1, num2);
     errors++;
 #else
 #ifdef MC_VERBOSE
-    XBT_TRACE3(mc, state_diff, num1, num2, "Different heap information");
     XBT_VERB("(%d - %d) Different heap information", num1, num2);
 #endif
 
@@ -479,7 +462,6 @@ int snapshot_compare(void *state1, void *state2)
     else diff_local =
         compare_local_variables(stack1->process_index, s1, s2, stack1, stack2);
     if (diff_local > 0) {
-      XBT_TRACE3(mc, state_diff, num1, num2, "Different local variables");
 #ifdef MC_DEBUG
       XBT_DEBUG("(%d - %d) Different local variables between stacks %d", num1,
                 num2, cursor + 1);
@@ -492,7 +474,7 @@ int snapshot_compare(void *state1, void *state2)
                num2, cursor + 1);
 #endif
 
-      reset_heap_information();
+      simgrid::mc::reset_heap_information();
 
       return 1;
 #endif
@@ -520,12 +502,12 @@ int snapshot_compare(void *state1, void *state2)
 
     /* Compare global variables */
     is_diff =
-      compare_global_variables(region1->object_info(  ), simgrid::mc::AddressSpace::Normal,
+      compare_global_variables(region1->object_info(),
+        simgrid::mc::ProcessIndexDisabled,
         region1, region2,
         s1, s2);
 
     if (is_diff != 0) {
-      XBT_TRACE3(mc, state_diff, num1, num2, "Different global variables");
 #ifdef MC_DEBUG
       XBT_DEBUG("(%d - %d) Different global variables in %s",
         num1, num2, name.c_str());
@@ -542,8 +524,7 @@ int snapshot_compare(void *state1, void *state2)
   }
 
   /* Compare heap */
-  if (mmalloc_compare_heap(s1, s2) > 0) {
-    XBT_TRACE3(mc, state_diff, num1, num2, "Different heap");
+  if (simgrid::mc::mmalloc_compare_heap(s1, s2) > 0) {
 
 #ifdef MC_DEBUG
     XBT_DEBUG("(%d - %d) Different heap (mmalloc_compare)", num1, num2);
@@ -558,7 +539,7 @@ int snapshot_compare(void *state1, void *state2)
 #endif
   }
 
-  reset_heap_information();
+  simgrid::mc::reset_heap_information();
 
 #ifdef MC_VERBOSE
   if (errors || hash_result)

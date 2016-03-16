@@ -9,12 +9,9 @@
 #include "simgrid/host.h"
 #include "src/simdag/simdag_private.h"
 #include "src/surf/surf_interface.hpp"
+#include "simgrid/s4u/engine.hpp"
 
-#include "xbt/dynar.h"
-#include "xbt/log.h"
-#include "xbt/sysdep.h"
-
-#ifdef HAVE_JEDULE
+#if HAVE_JEDULE
 #include "simgrid/jedule/jedule_sd_binding.h"
 #endif
 
@@ -50,10 +47,9 @@ void SD_init(int *argc, char **argv)
 
   surf_init(argc, argv);
 
-  xbt_cfg_setdefault_string(_sg_cfg_set, "host/model",
-                            "ptask_L07");
+  xbt_cfg_setdefault_string(_sg_cfg_set, "host/model", "ptask_L07");
 
-#ifdef HAVE_JEDULE
+#if HAVE_JEDULE
   jedule_sd_init();
 #endif
 
@@ -77,24 +73,6 @@ void SD_config(const char *key, const char *value){
 }
 
 /**
- * \brief Reinits the application part of the simulation (experimental feature)
- *
- * This function allows you to run several simulations on the same platform
- * by resetting the part describing the application.
- *
- * @warning: this function is still experimental and not perfect. For example,
- * the simulation clock (and traces usage) is not reset. So, do not use it if
- * you use traces in your simulation, and do not use absolute timing after
- * using it.
- * That being said, this function is still precious if you want to compare a
- * bunch of heuristics on the same platforms.
- */
-void SD_application_reinit(void)
-{
-  xbt_die("This function is not working since the C++ links and others. Please report the problem if you really need that function.");
-}
-
-/**
  * \brief Creates the environment
  *
  * The environment (i.e. the \ref sg_host_management "hosts" and the \ref SD_link_management "links") is created with
@@ -113,10 +91,10 @@ void SD_application_reinit(void)
  */
 void SD_create_environment(const char *platform_file)
 {
-  parse_platform_file(platform_file);
+  simgrid::s4u::Engine::instance()->loadPlatform(platform_file);
 
   XBT_DEBUG("Workstation number: %zu, link number: %d", sg_host_count(), sg_link_count());
-#ifdef HAVE_JEDULE
+#if HAVE_JEDULE
   jedule_setup_platform();
 #endif
   XBT_VERB("Starting simulation...");
@@ -141,7 +119,6 @@ void SD_create_environment(const char *platform_file)
 xbt_dynar_t SD_simulate(double how_long) {
   /* we stop the simulation when total_time >= how_long */
   double total_time = 0.0;
-  double elapsed_time = 0.0;
   SD_task_t task, dst;
   SD_dependency_t dependency;
   surf_action_t action;
@@ -161,7 +138,7 @@ xbt_dynar_t SD_simulate(double how_long) {
   }
 
   /* main loop */
-  elapsed_time = 0.0;
+  double elapsed_time = 0.0;
   while (elapsed_time >= 0.0 && (how_long < 0.0 || 0.00001 < (how_long -total_time)) &&
          !sd_global->watch_point_reached) {
     surf_model_t model = NULL;
@@ -240,7 +217,7 @@ xbt_dynar_t SD_simulate(double how_long) {
       /* let's see which tasks have just failed */
       while ((action = surf_model_extract_failed_action_set(model))) {
         task = (SD_task_t) action->getData();
-        task->start_time = surf_action_get_start_time(task->surf_action);
+        task->start_time = task->surf_action->getStartTime();
         task->finish_time = surf_get_clock();
         XBT_VERB("Task '%s' failed", SD_task_get_name(task));
         SD_task_set_state(task, SD_FAILED);
@@ -286,9 +263,8 @@ double SD_get_clock(void) {
 void SD_exit(void)
 {
   TRACE_surf_resource_utilization_release();
-  TRACE_end();
 
-#ifdef HAVE_JEDULE
+#if HAVE_JEDULE
   jedule_sd_cleanup();
   jedule_sd_exit();
 #endif
@@ -300,6 +276,4 @@ void SD_exit(void)
   xbt_dynar_free_container(&(sd_global->return_set));
   xbt_free(sd_global);
   sd_global = NULL;
-
-  surf_exit();
 }

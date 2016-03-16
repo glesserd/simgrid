@@ -85,7 +85,7 @@ if(enable_maintainer_mode AND NOT WIN32)
   message(STATUS "Found flex: ${FLEX_EXE}")
   IF(FLEX_EXE)
     set(HAVE_FLEX 1)
-    exec_program("${FLEX_EXE} --version" OUTPUT_VARIABLE FLEX_VERSION)
+    execute_process(COMMAND ${FLEX_EXE} --version OUTPUT_VARIABLE FLEX_VERSION)
     string(REGEX MATCH "[0-9]+[.]+[0-9]+[.]+[0-9]+" FLEX_VERSION "${FLEX_VERSION}")
     string(REGEX MATCH "^[0-9]+" FLEX_MAJOR_VERSION "${FLEX_VERSION}")
     string(REGEX MATCH "[0-9]+[.]+[0-9]+$" FLEX_VERSION "${FLEX_VERSION}")
@@ -96,7 +96,7 @@ if(enable_maintainer_mode AND NOT WIN32)
   message(STATUS "Found flexml: ${FLEXML_EXE}")
   IF(FLEXML_EXE)
     set(HAVE_FLEXML 1)
-    exec_program("${FLEXML_EXE} --version" OUTPUT_VARIABLE FLEXML_VERSION)
+    execute_process(COMMAND ${FLEXML_EXE} --version OUTPUT_VARIABLE FLEXML_VERSION)
     if (FLEXML_VERSION MATCHES "version Id:")
       message(FATAL_ERROR "You have an ancient flexml version (${FLEXML_VERSION}). You need at least v${FLEXML_MIN_MAJOR}.${FLEXML_MIN_MINOR}.${FLEXML_MIN_PATCH} to compile in maintainer mode. Upgrade your flexml, or disable the Maintainer mode option in cmake.")
     endif()
@@ -138,54 +138,39 @@ if(enable_maintainer_mode AND NOT WIN32)
     set(string1  "'s/extern *\\([^(]*\\)\\( \\|\\( \\*\\)\\)/XBT_PUBLIC_DATA(\\1\\3) /'")
     set(string2  "'s/XBT_PUBLIC_DATA(\\([^)]*\\)) *\\([^(]*\\)(/XBT_PUBLIC(\\1) \\2(/'")
     set(string5  "'s/SET(DOCTYPE)/SET(ROOT_dax__adag)/'")
-    set(string8  "'s/#if defined(_WIN32)/#if defined(_XBT_WIN32)/g'")
-    set(string9  "'s/#include <unistd.h>/#if defined(_XBT_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__TOS_WIN__)\\n#  ifndef __STRICT_ANSI__\\n#    include <io.h>\\n#    include <process.h>\\n#  endif\\n#else\\n#  include <unistd.h>\\n#endif/g'")
+    set(string9  "'s/#include <unistd.h>/#if defined(_WIN32)\\n#  ifndef __STRICT_ANSI__\\n#    include <io.h>\\n#    include <process.h>\\n#  endif\\n#else\\n#  include <unistd.h>\\n#endif/g'")
     set(string14 "'\\!^ \\* Generated [0-9/]\\{10\\} [0-9:]\\{8\\}\\.$$!d'")
     set(string15 "'s/FAIL(\"Premature EOF/if(!ETag_surfxml_include_state()) FAIL(\"Premature EOF/'")
 
     ADD_CUSTOM_COMMAND(
-      OUTPUT 	${CMAKE_HOME_DIRECTORY}/include/surf/simgrid_dtd.h
-      ${CMAKE_HOME_DIRECTORY}/include/xbt/graphxml.h
-      ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h
-      ${CMAKE_HOME_DIRECTORY}/src/surf/simgrid_dtd.c
-      ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.c
-      ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.c
+      OUTPUT 	${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.h
+                ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h
+                ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.c
+                ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.c
 
-      DEPENDS	${CMAKE_HOME_DIRECTORY}/src/surf/simgrid.dtd
-      ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.dtd
-      ${CMAKE_HOME_DIRECTORY}/src/simdag/dax.dtd
+      DEPENDS	${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid.dtd
+                ${CMAKE_HOME_DIRECTORY}/src/simdag/dax.dtd
 
-      #${CMAKE_HOME_DIRECTORY}/src/surf/simgrid_dtd.l: ${CMAKE_HOME_DIRECTORY}/src/surf/simgrid.dtd
-      COMMAND ${FLEXML_EXE} --root-tags platform -b 1000000 -P surfxml --sysid=http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd -S src/surf/simgrid_dtd.l -L src/surf/simgrid.dtd
-      COMMAND ${SED_EXE} -i ${string14} src/surf/simgrid_dtd.l
-      COMMAND ${CMAKE_COMMAND} -E echo "src/surf/simgrid_dtd.l"
-
-      #${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.l: ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.dtd
-      COMMAND ${FLEXML_EXE} -b 1000000 -P graphxml --sysid=graphxml.dtd -S src/xbt/graphxml.l -L src/xbt/graphxml.dtd
-      COMMAND ${SED_EXE} -i ${string14} src/xbt/graphxml.l
-      COMMAND ${CMAKE_COMMAND} -E echo "src/xbt/graphxml.l"
+      #${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.l: ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid.dtd
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_HOME_DIRECTORY}/src/surf/xml
+      COMMAND ${FLEXML_EXE} --root-tags platform -b 1000000 -P surfxml --sysid=http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd -S src/surf/xml/simgrid_dtd.l -L src/surf/xml/simgrid.dtd
+      COMMAND ${SED_EXE} -i ${string14} src/surf/xml/simgrid_dtd.l
+      COMMAND ${SED_EXE} -i "'s/FAIL(\"Bad declaration %s.\",yytext)/FAIL(\"Bad declaration %s.\\\\nIf your are using a XML v3 file (check the version attribute in <platform>), please update it with tools\\/simgrid_update_xml.pl\",yytext)/'" src/surf/xml/simgrid_dtd.l
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated src/surf/xml/simgrid_dtd.l"
 
       #${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.l: ${CMAKE_HOME_DIRECTORY}/src/simdag/dax.dtd
       COMMAND ${FLEXML_EXE} -b 1000000 --root-tags adag -P dax_ --sysid=dax.dtd -S src/simdag/dax_dtd.l -L src/simdag/dax.dtd
       COMMAND ${SED_EXE} -i ${string5} src/simdag/dax_dtd.l
       COMMAND ${SED_EXE} -i ${string14} src/simdag/dax_dtd.l
-      COMMAND ${CMAKE_COMMAND} -E echo "src/simdag/dax_dtd.l"
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated src/simdag/dax_dtd.l"
 
-      #${CMAKE_HOME_DIRECTORY}/include/surf/simgrid_dtd.h: ${CMAKE_HOME_DIRECTORY}/src/surf/simgrid.dtd
+      #${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.h: ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid.dtd
       COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/include/surf/simgrid.h
-      COMMAND ${FLEXML_EXE} --root-tags platform -P surfxml --sysid=http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd -H include/surf/simgrid_dtd.h -L src/surf/simgrid.dtd
-      COMMAND ${SED_EXE} -i ${string1} include/surf/simgrid_dtd.h
-      COMMAND ${SED_EXE} -i ${string2} include/surf/simgrid_dtd.h
-      COMMAND ${SED_EXE} -i ${string14} include/surf/simgrid_dtd.h
-      COMMAND ${CMAKE_COMMAND} -E echo "include/surf/simgrid_dtd.h"
-
-      #${CMAKE_HOME_DIRECTORY}/include/xbt/graphxml.h: ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.dtd
-      COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/include/xbt/graphxml.h
-      COMMAND ${FLEXML_EXE} -P graphxml --sysid=graphxml.dtd -H include/xbt/graphxml.h -L src/xbt/graphxml.dtd
-      COMMAND ${SED_EXE} -i ${string1} include/xbt/graphxml.h
-      COMMAND ${SED_EXE} -i ${string2} include/xbt/graphxml.h
-      COMMAND ${SED_EXE} -i ${string14} include/xbt/graphxml.h
-      COMMAND ${CMAKE_COMMAND} -E echo "include/xbt/graphxml.h"
+      COMMAND ${FLEXML_EXE} --root-tags platform -P surfxml --sysid=http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd -H src/surf/xml/simgrid_dtd.h -L src/surf/xml/simgrid.dtd
+      COMMAND ${SED_EXE} -i ${string1} src/surf/xml/simgrid_dtd.h
+      COMMAND ${SED_EXE} -i ${string2} src/surf/xml/simgrid_dtd.h
+      COMMAND ${SED_EXE} -i ${string14} src/surf/xml/simgrid_dtd.h
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated src/surf/xml/simgrid_dtd.h"
 
       #${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h: ${CMAKE_HOME_DIRECTORY}/src/simdag/dax.dtd
       COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h
@@ -193,37 +178,24 @@ if(enable_maintainer_mode AND NOT WIN32)
       COMMAND ${SED_EXE} -i ${string1} src/simdag/dax_dtd.h
       COMMAND ${SED_EXE} -i ${string2} src/simdag/dax_dtd.h
       COMMAND ${SED_EXE} -i ${string14} src/simdag/dax_dtd.h
-      COMMAND ${CMAKE_COMMAND} -E echo "src/simdag/dax_dtd.h"
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated src/simdag/dax_dtd.h"
 
-      #surf/simgrid_dtd.c: surf/simgrid_dtd.l
-      COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/src/surf/simgrid_dtd.c
-      COMMAND ${SED_EXE} -i ${string8} src/surf/simgrid_dtd.l
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_HOME_DIRECTORY}/src/surf
-      COMMAND ${FLEX_EXE} -o src/surf/simgrid_dtd.c -Psurf_parse_ --noline src/surf/simgrid_dtd.l
-      COMMAND ${SED_EXE} -i ${string9} src/surf/simgrid_dtd.c
-      COMMAND ${SED_EXE} -i ${string15} src/surf/simgrid_dtd.c
-      COMMAND ${SED_EXE} -i 's/int yyl\;/unsigned int yyl\;/' src/surf/simgrid_dtd.c
-      COMMAND ${SED_EXE} -i "s/register //" src/surf/simgrid_dtd.c
-      COMMAND ${CMAKE_COMMAND} -E echo "surf/simgrid_dtd.c"
-
-      #xbt/graphxml.c: xbt/graphxml.l
-      COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.c
-      COMMAND ${SED_EXE} -i ${string8} src/xbt/graphxml.l
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_HOME_DIRECTORY}/src/xbt
-      COMMAND ${FLEX_EXE} -o src/xbt/graphxml.c -Pxbt_graph_parse_ --noline src/xbt/graphxml.l
-      COMMAND ${SED_EXE} -i ${string9} src/xbt/graphxml.c
-      COMMAND ${SED_EXE} -i 's/int yyl\;/unsigned int yyl\;/' src/xbt/graphxml.c
-      COMMAND ${SED_EXE} -i "s/register //" src/xbt/graphxml.c
-      COMMAND ${CMAKE_COMMAND} -E echo "xbt/graphxml.c"
+      #surf/xml/simgrid_dtd.c: surf/xml/simgrid_dtd.l
+      COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.c
+      COMMAND ${FLEX_EXE} -o src/surf/xml/simgrid_dtd.c -Psurf_parse_ --noline src/surf/xml/simgrid_dtd.l
+      COMMAND ${SED_EXE} -i ${string9} src/surf/xml/simgrid_dtd.c
+      COMMAND ${SED_EXE} -i ${string15} src/surf/xml/simgrid_dtd.c
+      COMMAND ${SED_EXE} -i 's/int yyl\;/unsigned int yyl\;/' src/surf/xml/simgrid_dtd.c
+      COMMAND ${SED_EXE} -i "s/register //" src/surf/xml/simgrid_dtd.c
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated surf/xml/simgrid_dtd.c"
 
       #simdag/dax_dtd.c: simdag/dax_dtd.l
       COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.c
-      COMMAND ${SED_EXE} -i ${string8} src/simdag/dax_dtd.l
       COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_HOME_DIRECTORY}/src/simdag
       COMMAND ${FLEX_EXE} -o src/simdag/dax_dtd.c -Pdax_ --noline src/simdag/dax_dtd.l
       COMMAND ${SED_EXE} -i ${string9}                        src/simdag/dax_dtd.c
       COMMAND ${SED_EXE} -i 's/int yyl\;/unsigned int yyl\;/' src/simdag/dax_dtd.c
-      COMMAND ${CMAKE_COMMAND} -E echo "src/simdag/dax_dtd.c"
+      COMMAND ${CMAKE_COMMAND} -E echo "       Generated src/simdag/dax_dtd.c"
 
       WORKING_DIRECTORY ${CMAKE_HOME_DIRECTORY}
       COMMENT "Generating files in maintainer mode..."
@@ -246,10 +218,8 @@ if(enable_maintainer_mode AND NOT WIN32)
 endif()
 
     add_custom_target(maintainer_files
-      DEPENDS ${CMAKE_HOME_DIRECTORY}/include/surf/simgrid_dtd.h
-      ${CMAKE_HOME_DIRECTORY}/include/xbt/graphxml.h
-      ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h
-      ${CMAKE_HOME_DIRECTORY}/src/surf/simgrid_dtd.c
-      ${CMAKE_HOME_DIRECTORY}/src/xbt/graphxml.c
-      ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.c
+      DEPENDS ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.h
+              ${CMAKE_HOME_DIRECTORY}/src/surf/xml/simgrid_dtd.c
+              ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.h
+              ${CMAKE_HOME_DIRECTORY}/src/simdag/dax_dtd.c
       )

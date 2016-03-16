@@ -6,8 +6,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
     set(CMAKE_Fortran_COMPILER "${CMAKE_BINARY_DIR}/smpi_script/bin/smpiff")
   endif()
 
-  set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}")
-
   include_directories(BEFORE "${CMAKE_HOME_DIRECTORY}/include/smpi")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../include/")
 
@@ -49,14 +47,6 @@ if(enable_smpi AND enable_smpi_MPICH3_testsuite)
 
 endif()
 
-set(tesh_files
-  ${tesh_files}
-  PARENT_SCOPE
-  )
-set(xml_files
-  ${xml_files}
-  PARENT_SCOPE
-  )
 set(examples_src
   ${examples_src}
   ${CMAKE_CURRENT_SOURCE_DIR}/attr2type.c
@@ -76,14 +66,8 @@ set(examples_src
   ${CMAKE_CURRENT_SOURCE_DIR}/fkeyvalcomm.c
   ${CMAKE_CURRENT_SOURCE_DIR}/fkeyvaltype.c
   ${CMAKE_CURRENT_SOURCE_DIR}/keyval_double_free.c
-  PARENT_SCOPE
-  )
-set(bin_files
-  ${bin_files}
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)
 set(txt_files
   ${txt_files}
   ${CMAKE_CURRENT_SOURCE_DIR}/testlist
-  PARENT_SCOPE
-  )
+  PARENT_SCOPE)

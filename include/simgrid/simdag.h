@@ -10,17 +10,18 @@
 #include "xbt/misc.h"
 #include "xbt/dynar.h"
 #include "xbt/dict.h"
-
+#include "xbt/asserts.h"
+#include "xbt/log.h"
 #include "simgrid/link.h"
+#include "simgrid/host.h"
 
 SG_BEGIN_DECL()
 
 /** @brief Link datatype
     @ingroup SD_datatypes_management
 
-    A link is a network node represented as a <em>name</em>, a <em>current
-    bandwidth</em> and a <em>current latency</em>. A route is a list of
-    links between two workstations.
+    A link is a network node represented as a <em>name</em>, a <em>bandwidth</em> and a <em>latency</em>.
+    A route is a list of links between two workstations.
 
     @see SD_link_management */
 typedef Link *SD_link_t;
@@ -28,11 +29,9 @@ typedef Link *SD_link_t;
 /** @brief Task datatype
     @ingroup SD_datatypes_management
 
-    A task is some <em>computing amount</em> that can be executed
-    in parallel on several workstations. A task may depend on other
-    tasks, this means that the task cannot start until the other tasks are done.
-    Each task has a <em>\ref e_SD_task_state_t "state"</em> indicating whether
-    the task is scheduled, running, done, etc.
+    A task is some <em>computing amount</em> that can be executed in parallel on several hosts.
+    A task may depend on other tasks, which means that the task cannot start until the other tasks are done.
+    Each task has a <em>\ref e_SD_task_state_t "state"</em> indicating whether the task is scheduled, running, done, ...
 
     @see SD_task_management */
 typedef struct SD_task *SD_task_t;
@@ -64,33 +63,27 @@ typedef enum {
   SD_TASK_COMM_PAR_MXN_1D_BLOCK = 4 /**< @brief MxN data redistribution (1D Block distribution) */
 } e_SD_task_kind_t;
 
-
 /** @brief Storage datatype
     @ingroup SD_datatypes_management
-
- TODO PV: comment it !
 
     @see SD_storage_management */
 typedef xbt_dictelm_t SD_storage_t;
 
 /************************** Workstation handling ****************************/
-
 /** @defgroup sg_host_management Hosts
  *  @brief Functions for managing the Hosts
  *
  *  This section describes the functions for managing the hosts.
  *
  *  A host is a place where a task can be executed.
- *  A host is represented as a <em>physical resource with computing
- *  capabilities</em> and has a <em>name</em>.
+ *  A host is represented as a <em>physical resource with computing capabilities</em> and has a <em>name</em>.
  *
  *  The hosts are created when you call the function SD_create_environment.
  *
  *  @see sg_host_t
  *  @{
  */
-XBT_PUBLIC(const SD_link_t *) SD_route_get_list(sg_host_t src,
-                                                sg_host_t dst);
+XBT_PUBLIC(SD_link_t *) SD_route_get_list(sg_host_t src, sg_host_t dst);
 XBT_PUBLIC(int) SD_route_get_size(sg_host_t src, sg_host_t dst);
 
 XBT_PUBLIC(double) SD_route_get_latency(sg_host_t src, sg_host_t dst);
@@ -100,15 +93,14 @@ XBT_PUBLIC(const char*) SD_storage_get_host(SD_storage_t storage);
 /** @} */
 
 /************************** Task handling ************************************/
-
 /** @defgroup SD_task_management Tasks
  *  @brief Functions for managing the tasks
  *
  *  This section describes the functions for managing the tasks.
  *
- *  A task is some <em>working amount</em> that can be executed in parallel on several hosts. A task may depend on other
- *  tasks, this means that the task cannot start until the other tasks are done. Each task has a
- *  <em>\ref e_SD_task_state_t "state"</em> indicating whether the task is scheduled, running, done, etc.
+ *  A task is some <em>working amount</em> that can be executed in parallel on several hosts.
+ *  A task may depend on other tasks, which means that the task cannot start until the other tasks are done.
+ *  Each task has a <em>\ref e_SD_task_state_t "state"</em> indicating whether the task is scheduled, running, done, ...
  *
  *  @see SD_task_t, SD_task_dependency_management
  *  @{
@@ -163,7 +155,6 @@ XBT_PUBLIC(void) SD_task_schedulel(SD_task_t task, int count, ...);
 
 /** @} */
 
-
 /** @defgroup SD_task_dependency_management Tasks dependencies
  *  @brief Functions for managing the task dependencies
  *
@@ -180,7 +171,6 @@ XBT_PUBLIC(int) SD_task_dependency_exists(SD_task_t src, SD_task_t dst);
 /** @} */
 
 /************************** Global *******************************************/
-
 /** @defgroup SD_simulation Simulation
  *  @brief Functions for creating the environment and launching the simulation
  *
@@ -190,15 +180,14 @@ XBT_PUBLIC(int) SD_task_dependency_exists(SD_task_t src, SD_task_t dst);
  */
 XBT_PUBLIC(void) SD_init(int *argc, char **argv);
 XBT_PUBLIC(void) SD_config(const char *key, const char *value);
-XBT_PUBLIC(void) SD_application_reinit(void);
 XBT_PUBLIC(void) SD_create_environment(const char *platform_file);
 XBT_PUBLIC(xbt_dynar_t) SD_simulate(double how_long);
 XBT_PUBLIC(double) SD_get_clock(void);
 XBT_PUBLIC(void) SD_exit(void);
 XBT_PUBLIC(xbt_dynar_t) SD_daxload(const char *filename);
 XBT_PUBLIC(xbt_dynar_t) SD_dotload(const char *filename);
-XBT_PUBLIC(xbt_dynar_t) SD_PTG_dotload(const char *filename);
 XBT_PUBLIC(xbt_dynar_t) SD_dotload_with_sched(const char *filename);
+XBT_PUBLIC(xbt_dynar_t) SD_PTG_dotload(const char *filename);
 
 /** @} */
 
@@ -235,7 +224,4 @@ XBT_PUBLIC(xbt_dynar_t) SD_dotload_with_sched(const char *filename);
 //TRACE_sd_set_task_category
 
 SG_END_DECL()
-
-#include "simgrid/instr.h"
-
 #endif

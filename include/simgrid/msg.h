@@ -11,7 +11,6 @@
 #include "xbt/lib.h"
 #include "simgrid/forward.h"
 #include "simgrid/simix.h"
-#include "simgrid/platf.h"
 
 SG_BEGIN_DECL()
 
@@ -30,7 +29,7 @@ SG_BEGIN_DECL()
 typedef struct s_smx_rvpoint *msg_mailbox_t;
 
 /* ******************************** Environment ************************************ */
-typedef surf_As *msg_as_t;
+typedef simgrid_As *msg_as_t;
 
 /* ******************************** Host ************************************ */
 
@@ -233,7 +232,6 @@ XBT_PUBLIC(const char *) MSG_environment_as_get_name(msg_as_t as);
 XBT_PUBLIC(msg_as_t) MSG_environment_as_get_by_name(const char * name);
 XBT_PUBLIC(xbt_dict_t) MSG_environment_as_get_routing_sons(msg_as_t as);
 XBT_PUBLIC(const char *) MSG_environment_as_get_property_value(msg_as_t as, const char *name);
-XBT_PUBLIC(const char *) MSG_environment_as_get_model(msg_as_t as);
 XBT_PUBLIC(xbt_dynar_t) MSG_environment_as_get_hosts(msg_as_t as);
 
 /************************** File handling ***********************************/
@@ -286,11 +284,15 @@ XBT_PUBLIC(void *) MSG_host_get_data(msg_host_t host);
 XBT_PUBLIC(void) MSG_host_on(msg_host_t host);
 XBT_PUBLIC(void) MSG_host_off(msg_host_t host);
 XBT_PUBLIC(msg_host_t) MSG_host_self(void);
-XBT_PUBLIC(double) MSG_get_host_speed(msg_host_t h);
+XBT_PUBLIC(double) MSG_host_get_speed(msg_host_t h);
 XBT_PUBLIC(int) MSG_host_get_core_number(msg_host_t h);
 XBT_PUBLIC(xbt_swag_t) MSG_host_get_process_list(msg_host_t h);
 XBT_PUBLIC(int) MSG_host_is_on(msg_host_t h);
 XBT_PUBLIC(int) MSG_host_is_off(msg_host_t h);
+
+// deprecated
+XBT_PUBLIC(double) MSG_get_host_speed(msg_host_t h);
+
 
 XBT_PUBLIC(double) MSG_host_get_power_peak_at(msg_host_t h, int pstate);
 XBT_PUBLIC(double) MSG_host_get_current_power_peak(msg_host_t h);
@@ -336,6 +338,11 @@ XBT_PUBLIC(msg_process_t) MSG_process_create_with_environment(const char
                                                             char **argv,
                                                             xbt_dict_t
                                                             properties);
+XBT_PUBLIC(msg_process_t) MSG_process_attach(
+  const char *name, void *data,
+  msg_host_t host, xbt_dict_t properties);
+XBT_PUBLIC(void) MSG_process_detach(void);
+
 XBT_PUBLIC(void) MSG_process_kill(msg_process_t process);
 XBT_PUBLIC(int) MSG_process_killall(int reset_PIDs);
 XBT_PUBLIC(msg_error_t) MSG_process_migrate(msg_process_t process, msg_host_t host);
@@ -434,20 +441,14 @@ XBT_PUBLIC(msg_error_t)
     MSG_task_receive_ext_bounded(msg_task_t * task, const char *alias, double timeout,
                      msg_host_t host, double rate);
 
-XBT_PUBLIC(msg_error_t)
-    MSG_task_receive_with_timeout_bounded(msg_task_t * task, const char *alias,
-                              double timeout, double rate);
-
-XBT_PUBLIC(msg_error_t)
-    MSG_task_receive_bounded(msg_task_t * task, const char *alias,double rate);
+XBT_PUBLIC(msg_error_t) MSG_task_receive_with_timeout_bounded(msg_task_t * task, const char *alias,  double timeout, double rate);
+XBT_PUBLIC(msg_error_t) MSG_task_receive_bounded(msg_task_t * task, const char *alias,double rate);
 #define MSG_task_recv_bounded(t,a,r) MSG_task_receive_bounded(t,a,r)
 
 XBT_PUBLIC(msg_comm_t) MSG_task_isend(msg_task_t task, const char *alias);
 XBT_PUBLIC(msg_comm_t) MSG_task_isend_bounded(msg_task_t task, const char *alias, double maxrate);
-XBT_PUBLIC(msg_comm_t) MSG_task_isend_with_matching(msg_task_t task,
-                                                    const char *alias,
-                                                    int (*match_fun)(void*,void*, smx_synchro_t),
-                                                    void *match_data);
+XBT_PUBLIC(msg_comm_t) MSG_task_isend_with_matching(msg_task_t task, const char *alias,
+    int (*match_fun)(void*,void*, smx_synchro_t), void *match_data);
 
 XBT_PUBLIC(void) MSG_task_dsend(msg_task_t task, const char *alias, void_f_pvoid_t cleanup);
 XBT_PUBLIC(void) MSG_task_dsend_bounded(msg_task_t task, const char *alias, void_f_pvoid_t cleanup, double maxrate);
@@ -457,50 +458,72 @@ XBT_PUBLIC(int) MSG_comm_test(msg_comm_t comm);
 XBT_PUBLIC(int) MSG_comm_testany(xbt_dynar_t comms);
 XBT_PUBLIC(void) MSG_comm_destroy(msg_comm_t comm);
 XBT_PUBLIC(msg_error_t) MSG_comm_wait(msg_comm_t comm, double timeout);
-XBT_PUBLIC(void) MSG_comm_waitall(msg_comm_t * comm, int nb_elem,
-                                  double timeout);
+XBT_PUBLIC(void) MSG_comm_waitall(msg_comm_t * comm, int nb_elem, double timeout);
 XBT_PUBLIC(int) MSG_comm_waitany(xbt_dynar_t comms);
 XBT_PUBLIC(msg_task_t) MSG_comm_get_task(msg_comm_t comm);
 XBT_PUBLIC(msg_error_t) MSG_comm_get_status(msg_comm_t comm);
 
 XBT_PUBLIC(int) MSG_task_listen(const char *alias);
-
-XBT_PUBLIC(int) MSG_task_listen_from_host(const char *alias,
-                                          msg_host_t host);
-
-XBT_PUBLIC(msg_error_t)
-    MSG_task_send_with_timeout(msg_task_t task, const char *alias,
-                           double timeout);
-
-XBT_PUBLIC(msg_error_t)
-    MSG_task_send_with_timeout_bounded(msg_task_t task, const char *alias,
-                           double timeout, double maxrate);
-
-XBT_PUBLIC(msg_error_t)
-    MSG_task_send(msg_task_t task, const char *alias);
-
-XBT_PUBLIC(msg_error_t)
-    MSG_task_send_bounded(msg_task_t task, const char *alias, double rate);
-
+XBT_PUBLIC(int) MSG_task_listen_from_host(const char *alias, msg_host_t host);
+XBT_PUBLIC(msg_error_t) MSG_task_send_with_timeout(msg_task_t task, const char *alias, double timeout);
+XBT_PUBLIC(msg_error_t) MSG_task_send_with_timeout_bounded(msg_task_t task, const char *alias, double timeout, double maxrate);
+XBT_PUBLIC(msg_error_t) MSG_task_send(msg_task_t task, const char *alias);
+XBT_PUBLIC(msg_error_t) MSG_task_send_bounded(msg_task_t task, const char *alias, double rate);
 XBT_PUBLIC(int) MSG_task_listen_from(const char *alias);
-
 XBT_PUBLIC(void) MSG_task_set_category (msg_task_t task, const char *category);
 XBT_PUBLIC(const char *) MSG_task_get_category (msg_task_t task);
 
-/************************** Task handling ************************************/
-XBT_PUBLIC(msg_error_t)
-    MSG_mailbox_get_task_ext(msg_mailbox_t mailbox, msg_task_t * task,
-                         msg_host_t host, double timeout);
+/************************** Mailbox handling ************************************/
+/* @brief MSG_mailbox_new - create a new mailbox.
+ * Creates a new mailbox identified by the key specified by the parameter alias and add it in the global dictionary.
+ * @param  alias  The alias of the mailbox to create.
+ * @return        The newly created mailbox.
+ */
+XBT_PUBLIC(msg_mailbox_t) MSG_mailbox_new(const char *alias);
 
-XBT_PUBLIC(msg_error_t)
-    MSG_mailbox_get_task_ext_bounded(msg_mailbox_t mailbox, msg_task_t *task,
-                                     msg_host_t host, double timeout, double rate);
+/* @brief MSG_mailbox_get_by_alias - get a mailbox from its alias.
+ * Returns the mailbox associated with the key specified by the parameter alias. If the mailbox does not exists,
+ * the function creates it.
+ * @param   alias    The alias of the mailbox to return.
+ * @return           The mailbox associated with the alias specified as parameter or a new one if the key doesn't match.
+ */
+XBT_PUBLIC(msg_mailbox_t) MSG_mailbox_get_by_alias(const char *alias);
 
-XBT_PUBLIC(msg_error_t)
-    MSG_mailbox_put_with_timeout(msg_mailbox_t mailbox, msg_task_t task,
-                             double timeout);
+/* @brief MSG_mailbox_is_empty - test if a mailbox is empty.
+ * Tests if a mailbox is empty (contains no msg task).
+ * @param   mailbox  The mailbox to get test.
+ * @return           1 if the mailbox is empty, 0 otherwise.
+ */
+XBT_PUBLIC(int) MSG_mailbox_is_empty(msg_mailbox_t mailbox);
 
+/* @brief MSG_mailbox_set_async - set a mailbox as eager
+ * Sets the mailbox to a permanent receiver mode. Messages sent to this mailbox will then be sent just after the send
+ * is issued, without waiting for the corresponding receive.
+ * This call should be done before issuing any receive, and on the receiver's side only
+ * @param alias    The alias of the mailbox to modify.
+ */
 XBT_PUBLIC(void) MSG_mailbox_set_async(const char *alias);
+
+/* @brief MSG_mailbox_get_head - get the task at the head of a mailbox.
+ * Returns the task at the head of the mailbox. This function does not remove the task from the mailbox.
+ * @param   mailbox  The mailbox concerned by the operation.
+ * @return           The task at the head of the mailbox.
+ */
+XBT_PUBLIC(msg_task_t) MSG_mailbox_get_head(msg_mailbox_t mailbox);
+
+/* @brief MSG_mailbox_get_count_host_waiting_tasks
+ * Return the number of tasks waiting to be received in a mailbox and sent by a host.
+ * @param  mailbox  The mailbox concerned by the operation.
+ * @param  host     The host containing the processes that sended the tasks.
+ * @return          The number of tasks in the mailbox specified by the parameter mailbox and sended by all the
+ *                  processes located on the host specified by the parameter host.
+ */
+XBT_PUBLIC(int) MSG_mailbox_get_count_host_waiting_tasks(msg_mailbox_t mailbox, msg_host_t host);
+XBT_PUBLIC(msg_error_t) MSG_mailbox_get_task_ext(msg_mailbox_t mailbox, msg_task_t * task, msg_host_t host,
+                                                 double timeout);
+XBT_PUBLIC(msg_error_t) MSG_mailbox_get_task_ext_bounded(msg_mailbox_t mailbox, msg_task_t *task, msg_host_t host,
+                                                         double timeout, double rate);
+XBT_PUBLIC(msg_error_t) MSG_mailbox_put_with_timeout(msg_mailbox_t mailbox, msg_task_t task, double timeout);
 
 
 /************************** Action handling **********************************/
